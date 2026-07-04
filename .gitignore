@@ -3,3 +3,12 @@
 
 # Virtual environment
 venv/
+
+# Local vector store
+chroma_db/
+
+# pycache
+__pycache__/
+
+# docs
+docs/
