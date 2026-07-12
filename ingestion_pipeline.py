@@ -5,6 +5,7 @@ from docx import Document as DocxDocument
 from dotenv import load_dotenv
 from openai import OpenAI
 from pypdf import PdfReader
+from tqdm import tqdm
 
 load_dotenv()
 
@@ -48,6 +49,12 @@ def load_documents(docs_path=DOCS_PATH):
                     text = f.read()
                 if text.strip():
                     docs.append({'text': text, 'source': source, 'page': None})
+            elif name == '.DS_Store' or name.endswith(':Zone.Identifier'):
+                continue  # OS metadata junk — skip silently
+            else:
+                # Real file in an unsupported format (e.g. .pages, .doc, .rtf); warn
+                # so its content isn't silently left out of the index.
+                print(f'  Skipping unsupported file: {source}')
 
     if not docs:
         raise FileNotFoundError(f'No .pdf, .docx, or .txt files with text found in {docs_path}.')
@@ -107,20 +114,21 @@ def embed_and_store(chunks):
     chroma = chromadb.PersistentClient(path=CHROMA_PATH)
     collection = chroma.get_or_create_collection(COLLECTION_NAME)
 
-    for i in range(0, len(chunks), EMBED_BATCH_SIZE):
-        batch = chunks[i:i + EMBED_BATCH_SIZE]
-        response = openai_client.embeddings.create(
-            input=[c['text'] for c in batch],
-            model=EMBEDDING_MODEL,
-        )
-        collection.upsert(
-            ids=[c['id'] for c in batch],
-            embeddings=[item.embedding for item in response.data],
-            documents=[c['text'] for c in batch],
-            # Chroma metadata values can't be None, so 0 means "no page number"
-            metadatas=[{'source': c['source'], 'page': c['page'] or 0} for c in batch],
-        )
-        print(f'  Embedded {min(i + EMBED_BATCH_SIZE, len(chunks))}/{len(chunks)} chunks')
+    with tqdm(total=len(chunks), desc='Embedding chunks', unit='chunk') as bar:
+        for i in range(0, len(chunks), EMBED_BATCH_SIZE):
+            batch = chunks[i:i + EMBED_BATCH_SIZE]
+            response = openai_client.embeddings.create(
+                input=[c['text'] for c in batch],
+                model=EMBEDDING_MODEL,
+            )
+            collection.upsert(
+                ids=[c['id'] for c in batch],
+                embeddings=[item.embedding for item in response.data],
+                documents=[c['text'] for c in batch],
+                # Chroma metadata values can't be None, so 0 means "no page number"
+                metadatas=[{'source': c['source'], 'page': c['page'] or 0} for c in batch],
+            )
+            bar.update(len(batch))
 
     print(f'Collection "{COLLECTION_NAME}" now holds {collection.count()} chunks')
     return collection
