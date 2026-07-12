@@ -5,3 +5,4 @@ chromadb
 pypdf
 python-docx
 python-dotenv
+tqdm
