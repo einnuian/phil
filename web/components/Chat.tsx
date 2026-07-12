@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { streamChat } from "@/lib/api";
 
 type Message = {
@@ -105,13 +107,22 @@ export default function Chat() {
                     : "bg-white text-slate-800 shadow-sm ring-1 ring-slate-200")
                 }
               >
-                <div
-                  className={
-                    "whitespace-pre-wrap " + (streaming ? "blink-cursor" : "")
-                  }
-                >
-                  {m.content}
-                </div>
+                {isUser ? (
+                  // The user's own question is plain text — render it verbatim.
+                  <div className="whitespace-pre-wrap">{m.content}</div>
+                ) : (
+                  // The model answers in Markdown; render it (prose styles the output).
+                  <div
+                    className={
+                      "prose prose-sm prose-slate max-w-none prose-pre:bg-slate-800 " +
+                      (streaming ? "blink-cursor" : "")
+                    }
+                  >
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {m.content}
+                    </ReactMarkdown>
+                  </div>
+                )}
 
                 {m.sources && m.sources.length > 0 && (
                   <div className="mt-3 border-t border-slate-100 pt-2">
