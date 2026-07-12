@@ -2,31 +2,21 @@
 
 Each provider owns its own conversation history because the two APIs represent
 history differently: Anthropic stores rich content blocks (thinking + native
-citations), while Mistral stores plain role/content strings. Both expose the
-same `ask(question, chunks)` method: it streams the answer to stdout and returns
-the list of source titles to display.
+citations), while Mistral stores plain role/content strings.
+
+Both expose a `stream_answer(question, chunks)` generator that yields
+('token', text) tuples as the answer streams and a final ('sources', [...]) tuple
+once complete. `ask(...)` is a thin wrapper that consumes it for the CLI (printing
+tokens to stdout); the web API consumes the same generator to stream over SSE.
 """
+
+import os
+import re
 
 import anthropic
 from mistralai.client import Mistral
 
-import re
-import os
-
-ANTHROPIC_MODEL = 'claude-opus-4-8'
-MISTRAL_MODEL = 'mistral-small-latest'  # newest Small; pin a snapshot e.g. 'mistral-small-2506'
-
-SYSTEM_PROMPT = """You are an experienced CISV advisor. You answer questions from \
-volunteers and staff using ONLY the reference documents provided in each message.
-
-Each document is provided with its source label.
-
-Rules:
-- Base every answer on the provided documents and cite the source tag inline, e.g. \
-"[Source: handbook.pdf (page 3)]", whenever you use a document.
-- If the documents don't cover the question, say so plainly ("That isn't covered \
-in the documents I have") rather than guessing or using outside knowledge.
-- Be practical and concise, like an experienced colleague explaining a procedure."""
+from .config import ANTHROPIC_MODEL, MISTRAL_MODEL, SYSTEM_PROMPT
 
 
 def chunk_title(chunk):
@@ -48,6 +38,17 @@ class AnthropicProvider:
         self.messages = []
 
     def ask(self, question, chunks):
+        """Consume stream_answer for the CLI: print tokens, return cited sources."""
+        sources = []
+        for kind, payload in self.stream_answer(question, chunks):
+            if kind == 'token':
+                print(payload, end='', flush=True)
+            elif kind == 'sources':
+                sources = payload
+        print()
+        return sources
+
+    def stream_answer(self, question, chunks):
         content = []
         for chunk in chunks:
             content.append({
@@ -68,9 +69,8 @@ class AnthropicProvider:
                 messages=self.messages,
             ) as stream:
                 for text in stream.text_stream:
-                    print(text, end='', flush=True)
+                    yield ('token', text)
                 final = stream.get_final_message()
-            print()
         except Exception:
             self.messages.pop()  # drop the unanswered turn so history stays valid
             raise
@@ -89,7 +89,7 @@ class AnthropicProvider:
             'role': 'assistant',
             'content': [b for b in final.content if b.type != 'text' or b.text],
         })
-        return sources
+        yield ('sources', sources)
 
 
 class MistralProvider:
@@ -105,6 +105,17 @@ class MistralProvider:
         self.messages = []
 
     def ask(self, question, chunks):
+        """Consume stream_answer for the CLI: print tokens, return cited sources."""
+        sources = []
+        for kind, payload in self.stream_answer(question, chunks):
+            if kind == 'token':
+                print(payload, end='', flush=True)
+            elif kind == 'sources':
+                sources = payload
+        print()
+        return sources
+
+    def stream_answer(self, question, chunks):
         # Wrap each chunk in an explicit <document> block so the model can tell
         # reference DATA from instructions, and label it with the title used for
         # citation and validation. The preamble tells the model to never obey text
@@ -135,9 +146,8 @@ class MistralProvider:
             for event in stream:
                 delta = event.data.choices[0].delta.content
                 if delta:
-                    print(delta, end='', flush=True)
                     parts.append(delta)
-            print()
+                    yield ('token', delta)
         except Exception:
             self.messages.pop()  # drop the unanswered turn so history stays valid
             raise
@@ -166,7 +176,7 @@ class MistralProvider:
             full = lookup.get(title)
             if full and full not in sources:
                 sources.append(full)
-        return sources
+        yield ('sources', sources)
 
 
 def make_provider(name):

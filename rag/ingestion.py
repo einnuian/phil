@@ -2,20 +2,19 @@ import os
 
 import chromadb
 from docx import Document as DocxDocument
-from dotenv import load_dotenv
 from openai import OpenAI
 from pypdf import PdfReader
 from tqdm import tqdm
 
-load_dotenv()
-
-DOCS_PATH = 'docs'
-CHROMA_PATH = 'chroma_db'
-COLLECTION_NAME = 'cisv_docs'
-EMBEDDING_MODEL = 'text-embedding-3-small'
-CHUNK_SIZE = 3000  # characters, roughly 800 tokens
-CHUNK_OVERLAP = 300
-EMBED_BATCH_SIZE = 100
+from .config import (
+    CHROMA_PATH,
+    CHUNK_OVERLAP,
+    CHUNK_SIZE,
+    COLLECTION_NAME,
+    DOCS_PATH,
+    EMBED_BATCH_SIZE,
+    EMBEDDING_MODEL,
+)
 
 
 def load_documents(docs_path=DOCS_PATH):
