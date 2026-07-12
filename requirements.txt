@@ -1,4 +1,5 @@
 anthropic
+mistralai
 openai
 chromadb
 pypdf
