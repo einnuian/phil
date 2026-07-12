@@ -22,13 +22,22 @@ from rag.config import CHROMA_PATH, COLLECTION_NAME, LLM_PROVIDER
 from rag.providers import make_provider
 from rag.retrieval import retrieve
 
-# Comma-separated list of allowed frontend origins (the Next.js dev server by default).
-ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
+# Comma-separated list of exact allowed frontend origins (the Next.js dev server by default).
+ALLOWED_ORIGINS = [
+    o.strip() for o in os.getenv('ALLOWED_ORIGINS', 'http://localhost:3000').split(',') if o.strip()
+]
+
+# Optional regex matching a whole family of origins, on top of the exact list above.
+# An origin is allowed if it's in ALLOWED_ORIGINS OR matches this pattern. Useful for
+# Vercel preview deployments, which get a unique URL per branch. For example:
+#   ALLOWED_ORIGIN_REGEX=https://cisv-rag-.*\.vercel\.app
+ALLOWED_ORIGIN_REGEX = os.getenv('ALLOWED_ORIGIN_REGEX') or None
 
 app = FastAPI(title='CISV Advisor API')
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=ALLOWED_ORIGIN_REGEX,
     allow_methods=['*'],
     allow_headers=['*'],
 )
