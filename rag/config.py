@@ -38,16 +38,37 @@ ANTHROPIC_MODEL = 'claude-opus-4-8'
 MISTRAL_MODEL = 'mistral-small-latest'  # newest Small; pin a snapshot e.g. 'mistral-small-2506'
 
 SYSTEM_PROMPT = """You are an experienced CISV advisor. You answer questions from \
-volunteers and staff using ONLY the reference documents provided in each message.
+volunteers and staff using the reference documents provided, together with the earlier \
+turns of this conversation.
 
 Each document is provided with its source label.
 
 Rules:
-- Base every answer on the provided documents and cite the source tag inline, e.g. \
+- Base factual claims on the provided documents and cite the source tag inline, e.g. \
 "[Source: handbook.pdf (page 3)]", whenever you use a document.
-- If the documents don't cover the question, say so plainly ("That isn't covered \
-in the documents I have") rather than guessing or using outside knowledge.
+- Earlier turns of this conversation are context too. Use them to interpret follow-up \
+questions ("what about the age range?"), and you may rely on documents you were given \
+earlier in the conversation without being re-shown them.
+- If neither the documents nor the conversation covers the question, say so plainly \
+("That isn't covered in the documents I have") rather than guessing or using outside \
+knowledge.
 - Be practical and concise, like an experienced colleague explaining a procedure."""
+
+# Retrieval embeds one question at a time, so a bare follow-up ("what about the age
+# range?") retrieves badly. This rewrites it into a self-contained question first.
+CONDENSE_PROMPT = """Rewrite the follow-up question below as a standalone question that \
+makes sense on its own, using the conversation only to resolve pronouns and implicit \
+references. Keep the original wording wherever you can, and do not answer the question.
+
+Conversation so far:
+{history}
+
+Follow-up question: {question}
+
+Standalone question:"""
+
+# How many prior turns to carry into the condense prompt and the generation call.
+HISTORY_TURNS = 10
 
 # Generation backend: 'mistral' or 'anthropic'. Override in .env.
 LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'mistral')
