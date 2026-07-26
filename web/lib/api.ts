@@ -4,22 +4,48 @@ export type ChatEvent =
   | { type: "done" }
   | { type: "error"; message: string };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+/**
+ * Probe the backend's health endpoint. Returns false (never throws) on a
+ * refused connection, a timeout, or a non-2xx reply, so callers can treat any
+ * failure as "not reachable yet" and retry.
+ */
+export async function checkHealth(timeoutMs = 8000): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${API_URL}/api/health`, {
+      signal: controller.signal,
+      cache: "no-store",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export type HistoryTurn = { role: "user" | "assistant"; content: string };
 
 /**
  * POST a question to the backend and yield Server-Sent Events as they arrive.
  * The backend streams `data: {json}\n\n` frames; we buffer the response body and
  * parse one frame at a time so tokens surface live.
+ *
+ * The backend is stateless — prior turns travel with the question, so reloads
+ * and backend restarts don't lose the thread.
  */
 export async function* streamChat(
-  sessionId: string,
   question: string,
+  history: HistoryTurn[],
   signal?: AbortSignal,
 ): AsyncGenerator<ChatEvent> {
   const res = await fetch(`${API_URL}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ session_id: sessionId, question }),
+    body: JSON.stringify({ question, history }),
     signal,
   });
 

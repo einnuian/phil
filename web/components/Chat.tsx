@@ -4,6 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { streamChat } from "@/lib/api";
+import UserMenu from "@/components/UserMenu";
+import {
+  createConversation,
+  latestConversationId,
+  loadMessages,
+  saveMessage,
+  setTitleFromFirstQuestion,
+} from "@/lib/conversations";
 
 type Message = {
   role: "user" | "assistant";
@@ -15,12 +23,29 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const sessionId = useRef("");
+  const [loading, setLoading] = useState(true);
+  const conversationId = useRef<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // A stable session id per browser tab keeps a single conversation on the backend.
+  // Resume the user's most recent conversation on load. A new one is created
+  // lazily on the first question, so opening the app doesn't leave empty rows.
   useEffect(() => {
-    sessionId.current = crypto.randomUUID();
+    let cancelled = false;
+    (async () => {
+      try {
+        const id = await latestConversationId();
+        if (cancelled) return;
+        conversationId.current = id;
+        if (id) setMessages(await loadMessages(id));
+      } catch {
+        // Unreadable history shouldn't block asking a new question.
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -40,6 +65,9 @@ export default function Chat() {
     const question = input.trim();
     if (!question || busy) return;
 
+    // The turns already on screen are the context the backend needs.
+    const history = messages.map((m) => ({ role: m.role, content: m.content }));
+
     setInput("");
     setBusy(true);
     setMessages((prev) => [
@@ -48,11 +76,16 @@ export default function Chat() {
       { role: "assistant", content: "" },
     ]);
 
+    let answer = "";
+    let sources: string[] = [];
+
     try {
-      for await (const ev of streamChat(sessionId.current, question)) {
+      for await (const ev of streamChat(question, history)) {
         if (ev.type === "token") {
+          answer += ev.text;
           updateLast((m) => ({ ...m, content: m.content + ev.text }));
         } else if (ev.type === "sources") {
+          sources = ev.sources;
           updateLast((m) => ({ ...m, sources: ev.sources }));
         } else if (ev.type === "error") {
           updateLast((m) => ({ ...m, content: `${m.content}\n\n⚠️ ${ev.message}` }));
@@ -66,6 +99,21 @@ export default function Chat() {
     } finally {
       setBusy(false);
     }
+
+    // Persist only a real answer — a failed turn shouldn't poison the history
+    // that every future question is conditioned on.
+    if (!answer) return;
+    try {
+      if (!conversationId.current) {
+        conversationId.current = await createConversation();
+      }
+      const id = conversationId.current;
+      await saveMessage(id, "user", question);
+      await saveMessage(id, "assistant", answer, sources);
+      await setTitleFromFirstQuestion(id, question);
+    } catch {
+      // The answer is already on screen; losing the write shouldn't interrupt.
+    }
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -78,14 +126,25 @@ export default function Chat() {
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col">
       <header className="border-b border-slate-200 bg-white px-6 py-4">
-        <h1 className="text-lg font-semibold">Phil</h1>
-        <p className="text-sm text-slate-500">
-          Hi! I'm Phil, your dedicated CISV Program Planner. Ask me any questions about planning a camp.
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-lg font-semibold">Phil</h1>
+            <p className="text-sm text-slate-500">
+              Hi! I'm Phil, your dedicated CISV Program Planner. Ask me any questions about planning a camp.
+            </p>
+          </div>
+          <UserMenu />
+        </div>
       </header>
 
       <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
-        {messages.length === 0 && (
+        {loading && (
+          <p className="mt-10 text-center text-sm text-slate-400">
+            Loading your conversation…
+          </p>
+        )}
+
+        {!loading && messages.length === 0 && (
           <p className="mt-10 text-center text-sm text-slate-400">
             Ask a question to get started.
           </p>
