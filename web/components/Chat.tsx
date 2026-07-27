@@ -3,14 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { streamChat } from "@/lib/api";
-import UserMenu from "@/components/UserMenu";
+import { generateTitle, streamChat } from "@/lib/api";
 import {
   createConversation,
-  latestConversationId,
   loadMessages,
   saveMessage,
-  setTitleFromFirstQuestion,
+  setConversationTitle,
 } from "@/lib/conversations";
 
 type Message = {
@@ -19,34 +17,57 @@ type Message = {
   sources?: string[];
 };
 
-export default function Chat() {
+export default function Chat({
+  conversationId,
+  conversationTitle,
+  onRename,
+  onConversationSaved,
+}: {
+  conversationId: string | null;
+  conversationTitle: string | null;
+  onRename: (id: string, title: string) => void;
+  onConversationSaved: (id: string) => void;
+}) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
-  const conversationId = useRef<string | null>(null);
+  // Null unless the title is being edited; holds the in-progress text.
+  const [draftTitle, setDraftTitle] = useState<string | null>(null);
+  // Mirrors the prop so send() can fill it in when it lazily creates a row.
+  const activeId = useRef<string | null>(conversationId);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Resume the user's most recent conversation on load. A new one is created
-  // lazily on the first question, so opening the app doesn't leave empty rows.
+  // Load whichever conversation the sidebar selected. The `cancelled` guard
+  // means switching threads quickly can't let a slow load overwrite a newer one.
   useEffect(() => {
     let cancelled = false;
+    activeId.current = conversationId;
+    setDraftTitle(null);
+
+    if (!conversationId) {
+      setMessages([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
     (async () => {
       try {
-        const id = await latestConversationId();
-        if (cancelled) return;
-        conversationId.current = id;
-        if (id) setMessages(await loadMessages(id));
+        const loaded = await loadMessages(conversationId);
+        if (!cancelled) setMessages(loaded);
       } catch {
         // Unreadable history shouldn't block asking a new question.
+        if (!cancelled) setMessages([]);
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [conversationId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -104,13 +125,22 @@ export default function Chat() {
     // that every future question is conditioned on.
     if (!answer) return;
     try {
-      if (!conversationId.current) {
-        conversationId.current = await createConversation();
-      }
-      const id = conversationId.current;
+      // Only a brand-new thread needs naming, so the title call costs one
+      // request per conversation rather than one per turn.
+      const isNewConversation = !activeId.current;
+      const id = activeId.current ?? (await createConversation());
+      activeId.current = id;
       await saveMessage(id, "user", question);
       await saveMessage(id, "assistant", answer, sources);
-      await setTitleFromFirstQuestion(id, question);
+
+      if (isNewConversation) {
+        const title = await generateTitle(question);
+        // The backend already falls back to the trimmed question; this covers
+        // the case where the request itself never got there.
+        await setConversationTitle(id, title ?? question.slice(0, 60));
+      }
+
+      onConversationSaved(id);
     } catch {
       // The answer is already on screen; losing the write shouldn't interrupt.
     }
@@ -123,21 +153,53 @@ export default function Chat() {
     }
   }
 
+  function commitTitle() {
+    const next = draftTitle?.trim();
+    setDraftTitle(null);
+    if (!conversationId || !next || next === conversationTitle) return;
+    onRename(conversationId, next);
+  }
+
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col">
-      <header className="border-b border-slate-200 bg-white px-6 py-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-lg font-semibold">Phil</h1>
-            <p className="text-sm text-slate-500">
-              Hi! I'm Phil, your dedicated CISV Program Planner. Ask me any questions about planning a camp.
-            </p>
-          </div>
-          <UserMenu />
-        </div>
+      <header className="flex items-center border-b border-sand px-6 py-3">
+        {draftTitle !== null ? (
+          <input
+            autoFocus
+            value={draftTitle}
+            onChange={(e) => setDraftTitle(e.target.value)}
+            onBlur={commitTitle}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commitTitle();
+              } else if (e.key === "Escape") {
+                setDraftTitle(null);
+              }
+            }}
+            aria-label="Conversation name"
+            className="w-full max-w-md rounded-lg border border-slate-300 bg-cream px-2 py-1 text-sm font-medium focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+          />
+        ) : conversationId ? (
+          <button
+            type="button"
+            onClick={() => setDraftTitle(conversationTitle ?? "")}
+            title="Click to rename"
+            className="max-w-full truncate rounded-lg px-2 py-1 text-sm font-medium text-slate-900 transition hover:bg-sand"
+          >
+            {conversationTitle ?? "Untitled conversation"}
+          </button>
+        ) : (
+          // Nothing to rename until the first answer creates the row.
+          <span className="px-2 py-1 text-sm font-medium text-slate-400">
+            New conversation
+          </span>
+        )}
       </header>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
+      {/* Roomier than a bubble list — without a card, spacing is what separates turns.
+          `pt-10` keeps the first message clear of the fade at the top edge. */}
+      <div className="no-scrollbar fade-top flex-1 space-y-6 overflow-y-auto px-6 pb-6 pt-10">
         {loading && (
           <p className="mt-10 text-center text-sm text-slate-400">
             Loading your conversation…
@@ -154,26 +216,19 @@ export default function Chat() {
           const isUser = m.role === "user";
           const streaming = busy && i === messages.length - 1 && !isUser;
           return (
-            <div
-              key={i}
-              className={isUser ? "flex justify-end" : "flex justify-start"}
-            >
-              <div
-                className={
-                  "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed " +
-                  (isUser
-                    ? "bg-blue-600 text-white"
-                    : "bg-white text-slate-800 shadow-sm ring-1 ring-slate-200")
-                }
-              >
-                {isUser ? (
-                  // The user's own question is plain text — render it verbatim.
-                  <div className="whitespace-pre-wrap">{m.content}</div>
-                ) : (
-                  // The model answers in Markdown; render it (prose styles the output).
+            // The user's turn sits in a tinted bubble; the answer is bare text
+            // on the page, so nothing competes with it for attention.
+            <div key={i} className={isUser ? "flex justify-end" : undefined}>
+              {isUser ? (
+                <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-sand px-4 py-3 text-base leading-relaxed text-black">
+                  {m.content}
+                </div>
+              ) : (
+                <div className="text-black">
+                  {/* The model answers in Markdown; prose styles the output. */}
                   <div
                     className={
-                      "prose prose-sm prose-slate max-w-none prose-pre:bg-slate-800 " +
+                      "prose prose-base prose-black max-w-none prose-pre:bg-slate-800 " +
                       (streaming ? "blink-cursor" : "")
                     }
                   >
@@ -181,33 +236,33 @@ export default function Chat() {
                       {m.content}
                     </ReactMarkdown>
                   </div>
-                )}
 
-                {m.sources && m.sources.length > 0 && (
-                  <div className="mt-3 border-t border-slate-100 pt-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Sources
-                    </p>
-                    <ul className="mt-1 space-y-0.5">
-                      {m.sources.map((s) => (
-                        <li key={s} className="text-xs text-slate-500">
-                          {s}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
+                  {m.sources && m.sources.length > 0 && (
+                    <div className="mt-3 border-t border-sand pt-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Sources
+                      </p>
+                      <ul className="mt-1 space-y-0.5">
+                        {m.sources.map((s) => (
+                          <li key={s} className="text-xs text-slate-500">
+                            {s}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
         <div ref={bottomRef} />
       </div>
 
-      <div className="border-t border-slate-200 bg-white px-6 py-4">
+      <div className="border-t border-sand px-6 py-4">
         <div className="flex items-end gap-2">
           <textarea
-            className="max-h-40 min-h-[44px] flex-1 resize-none rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="max-h-40 min-h-[44px] flex-1 resize-none rounded-xl border border-sand bg-sand px-3 py-2 text-base placeholder:text-slate-500 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
             placeholder="Ask a question…  (Enter to send, Shift+Enter for newline)"
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -218,7 +273,7 @@ export default function Chat() {
           <button
             onClick={send}
             disabled={busy || !input.trim()}
-            className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-cream transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {busy ? "…" : "Send"}
           </button>
