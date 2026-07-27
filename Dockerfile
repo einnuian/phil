@@ -10,7 +10,12 @@
 #     -e MISTRAL_API_KEY=... \
 #     -e LLM_PROVIDER=mistral \
 #     -e ALLOWED_ORIGINS=https://your-frontend.example \
+#     -e SUPABASE_URL=https://your-project.supabase.co \
+#     -e SUPABASE_ANON_KEY=... \
 #     cisv-advisor-api
+#
+# SUPABASE_URL and SUPABASE_ANON_KEY are required: /api/chat and /api/title
+# verify the caller's session against them and fail closed (503) without them.
 
 FROM python:3.12-slim
 
