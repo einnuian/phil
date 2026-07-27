@@ -19,10 +19,19 @@ import os
 import httpx
 from fastapi import Header, HTTPException
 
-SUPABASE_URL = os.getenv('SUPABASE_URL', '').rstrip('/')
-SUPABASE_ANON_KEY = os.getenv('SUPABASE_ANON_KEY', '')
-
 _TIMEOUT = httpx.Timeout(10.0)
+
+
+def _config():
+    """Read config per call, not at import.
+
+    `rag.config` is what loads `.env`, and it is imported *after* this module —
+    so anything read at import time here would see an empty environment.
+    """
+    return (
+        os.getenv('SUPABASE_URL', '').rstrip('/'),
+        os.getenv('SUPABASE_ANON_KEY', ''),
+    )
 
 
 async def require_user(authorization: str = Header(default='')):
@@ -30,9 +39,11 @@ async def require_user(authorization: str = Header(default='')):
 
     Returns the Supabase user object so handlers can attribute usage.
     """
+    supabase_url, anon_key = _config()
+
     # Fail closed. An unconfigured server must not silently accept everyone —
     # that is the exact hole this module exists to close.
-    if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+    if not supabase_url or not anon_key:
         raise HTTPException(
             status_code=503,
             detail='Auth is not configured — set SUPABASE_URL and SUPABASE_ANON_KEY.',
@@ -45,8 +56,8 @@ async def require_user(authorization: str = Header(default='')):
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             response = await client.get(
-                f'{SUPABASE_URL}/auth/v1/user',
-                headers={'Authorization': f'Bearer {token}', 'apikey': SUPABASE_ANON_KEY},
+                f'{supabase_url}/auth/v1/user',
+                headers={'Authorization': f'Bearer {token}', 'apikey': anon_key},
             )
     except httpx.HTTPError:
         # Auth is unreachable: refuse rather than wave the request through.

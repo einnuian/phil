@@ -81,12 +81,14 @@ def health():
 
 class TitleRequest(BaseModel):
     question: str
+    # The first answer, used to disambiguate what the question was about.
+    answer: str = ''
 
 
 @app.post('/api/title')
 def title(req: TitleRequest, user=Depends(require_user)):
-    """Name a conversation from its opening question, for the sidebar."""
-    return {'title': generate_title(_provider, req.question)}
+    """Name a conversation from its opening exchange, for the sidebar."""
+    return {'title': generate_title(_provider, req.question, req.answer)}
 
 
 @app.post('/api/chat')
