@@ -11,7 +11,7 @@ const display = Bricolage_Grotesque({
 });
 
 export const metadata: Metadata = {
-  title: "CISV Advisor",
+  title: "Phil - CISV Advisor",
   description: "Ask questions answered from CISV reference documents.",
 };
 
