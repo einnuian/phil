@@ -5,8 +5,9 @@ import os
 import chromadb
 from openai import OpenAI
 
-from rag.config import CHROMA_PATH, COLLECTION_NAME, LLM_PROVIDER, PROVIDER_KEYS
+from rag.config import CHROMA_PATH, COLLECTION_NAME, HISTORY_TURNS, LLM_PROVIDER, PROVIDER_KEYS
 from rag.providers import make_provider
+from rag.query import condense_question
 from rag.retrieval import retrieve
 
 
@@ -25,6 +26,9 @@ def main():
     provider = make_provider(LLM_PROVIDER)
     openai_client = OpenAI()
 
+    # Providers are stateless, so the CLI keeps the conversation itself.
+    history = []
+
     print(f'CISV advisor Q&A ({provider.name}) — ask a question, or type "quit" to exit.')
     while True:
         try:
@@ -37,12 +41,26 @@ def main():
             break
 
         print()
-        chunks = retrieve(question, openai_client, collection)
+        search_query = condense_question(provider, question, history)
+        chunks = retrieve(search_query, openai_client, collection)
+        # Consume the stream directly so we keep the answer text for the history.
+        parts, sources = [], []
         try:
-            sources = provider.ask(question, chunks)
+            for kind, payload in provider.stream_answer(question, chunks, history):
+                if kind == 'token':
+                    parts.append(payload)
+                    print(payload, end='', flush=True)
+                elif kind == 'sources':
+                    sources = payload
+            print()
         except Exception as e:
             print(f'\n{provider.name} API error: {e}')
             continue
+
+        history.append({'role': 'user', 'content': question})
+        history.append({'role': 'assistant', 'content': ''.join(parts)})
+        del history[:-HISTORY_TURNS]
+
         if sources:
             print('\nSources:')
             for source in sources:
