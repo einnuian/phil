@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { API_URL, checkHealth } from "@/lib/api";
+import { checkHealth } from "@/lib/api";
 
 type Status = "checking" | "waking" | "online";
 
@@ -96,8 +96,6 @@ export default function WakeGate({ children }: { children: React.ReactNode }) {
         >
           Retry now
         </button>
-
-        <p className="mt-4 break-all text-xs text-slate-400">{API_URL}</p>
       </div>
     </div>
   );
