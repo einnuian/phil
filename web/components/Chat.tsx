@@ -134,7 +134,7 @@ export default function Chat({
       await saveMessage(id, "assistant", answer, sources);
 
       if (isNewConversation) {
-        const title = await generateTitle(question);
+        const title = await generateTitle(question, answer);
         // The backend already falls back to the trimmed question; this covers
         // the case where the request itself never got there.
         await setConversationTitle(id, title ?? question.slice(0, 60));

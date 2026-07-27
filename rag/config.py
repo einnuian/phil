@@ -70,22 +70,27 @@ Standalone question:"""
 # How many prior turns to carry into the condense prompt and the generation call.
 HISTORY_TURNS = 10
 
-# Names a conversation from its opening question, for the sidebar.
-TITLE_PROMPT = """Write a short title for a conversation that opens with the question \
+# Names a conversation from its opening exchange, for the sidebar.
+TITLE_PROMPT = """Write a short title for a conversation that opens with the exchange \
 below.
 
 Rules:
 - Three to six words.
-- Name the topic; do not answer the question.
+- Name the topic the exchange is about. Use the answer to disambiguate what the \
+question was really asking; do not summarise the answer itself.
 - No surrounding quotes and no trailing punctuation.
 - Plain text only.
 
-Question: {question}
+{context}
 
 Title:"""
 
 # Titles longer than this are treated as the model ignoring the instruction.
 TITLE_MAX_CHARS = 60
+
+# How much of the first answer to include as naming context. The opening is
+# what identifies the topic, and this call counts against the rate limit.
+TITLE_ANSWER_CHARS = 800
 
 # Generation backend: 'mistral' or 'anthropic'. Override in .env.
 LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'mistral')

@@ -45,16 +45,22 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 /**
- * Ask the backend to name a conversation from its opening question. Returns
- * null on any failure — the caller falls back to the question itself, since a
- * missing title is worse than an imperfect one.
+ * Ask the backend to name a conversation from its opening exchange. Passing
+ * the answer matters: "how long is it?" is ambiguous alone, and the answer is
+ * what identifies the subject.
+ *
+ * Returns null on any failure — the caller falls back to the question itself,
+ * since a missing title is worse than an imperfect one.
  */
-export async function generateTitle(question: string): Promise<string | null> {
+export async function generateTitle(
+  question: string,
+  answer: string,
+): Promise<string | null> {
   try {
     const res = await fetch(`${API_URL}/api/title`, {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({ question, answer }),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as { title?: string };

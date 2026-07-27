@@ -11,7 +11,13 @@ Both degrade to a sensible non-LLM fallback rather than failing the request.
 
 import re
 
-from .config import CONDENSE_PROMPT, HISTORY_TURNS, TITLE_MAX_CHARS, TITLE_PROMPT
+from .config import (
+    CONDENSE_PROMPT,
+    HISTORY_TURNS,
+    TITLE_ANSWER_CHARS,
+    TITLE_MAX_CHARS,
+    TITLE_PROMPT,
+)
 
 
 def _format_history(history, turns=HISTORY_TURNS):
@@ -57,14 +63,23 @@ def truncate_title(question, limit=TITLE_MAX_CHARS):
     return text[: limit - 1].rstrip() + '…'
 
 
-def generate_title(provider, question):
-    """Ask the model for a concise title for a conversation opening with `question`.
+def generate_title(provider, question, answer=None):
+    """Ask the model for a concise title for a conversation's opening exchange.
+
+    The answer is optional but worth passing: a question like "what about the
+    age range?" or "how long?" is ambiguous on its own, and the answer is what
+    reveals the subject.
 
     Falls back to the trimmed question if the call fails or the reply doesn't
     look like a title — a conversation should always end up named.
     """
+    context = f'Question: {question}'
+    excerpt = ' '.join((answer or '').split())[:TITLE_ANSWER_CHARS]
+    if excerpt:
+        context += f'\n\nAnswer: {excerpt}'
+
     try:
-        title = provider.complete(TITLE_PROMPT.format(question=question), max_tokens=32)
+        title = provider.complete(TITLE_PROMPT.format(context=context), max_tokens=32)
     except Exception:
         return truncate_title(question)
 
