@@ -14,12 +14,13 @@ import json
 import os
 
 import chromadb
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from openai import OpenAI
 from pydantic import BaseModel
 
+from api.auth import require_user
 from rag.config import CHROMA_PATH, COLLECTION_NAME, HISTORY_TURNS, LLM_PROVIDER
 from rag.providers import make_provider
 from rag.query import condense_question, generate_title
@@ -83,13 +84,13 @@ class TitleRequest(BaseModel):
 
 
 @app.post('/api/title')
-def title(req: TitleRequest):
+def title(req: TitleRequest, user=Depends(require_user)):
     """Name a conversation from its opening question, for the sidebar."""
     return {'title': generate_title(_provider, req.question)}
 
 
 @app.post('/api/chat')
-def chat(req: ChatRequest):
+def chat(req: ChatRequest, user=Depends(require_user)):
     history = [t.model_dump() for t in req.history][-HISTORY_TURNS:]
 
     # A bare follow-up ("what about the age range?") embeds poorly on its own, so

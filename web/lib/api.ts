@@ -1,3 +1,5 @@
+import { createClient } from "@/lib/supabase/client";
+
 export type ChatEvent =
   | { type: "token"; text: string }
   | { type: "sources"; sources: string[] }
@@ -30,6 +32,19 @@ export async function checkHealth(timeoutMs = 8000): Promise<boolean> {
 export type HistoryTurn = { role: "user" | "assistant"; content: string };
 
 /**
+ * Headers for the endpoints that cost money. The backend verifies this token
+ * with Supabase, so an unsigned or expired session can't spend the quota.
+ */
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await createClient().auth.getSession();
+  const token = data.session?.access_token;
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+/**
  * Ask the backend to name a conversation from its opening question. Returns
  * null on any failure — the caller falls back to the question itself, since a
  * missing title is worse than an imperfect one.
@@ -38,7 +53,7 @@ export async function generateTitle(question: string): Promise<string | null> {
   try {
     const res = await fetch(`${API_URL}/api/title`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await authHeaders(),
       body: JSON.stringify({ question }),
     });
     if (!res.ok) return null;
@@ -64,10 +79,14 @@ export async function* streamChat(
 ): AsyncGenerator<ChatEvent> {
   const res = await fetch(`${API_URL}/api/chat`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: await authHeaders(),
     body: JSON.stringify({ question, history }),
     signal,
   });
+
+  if (res.status === 401) {
+    throw new Error("Your session has expired — sign in again.");
+  }
 
   if (!res.ok || !res.body) {
     throw new Error(`Backend returned ${res.status} ${res.statusText}`);
