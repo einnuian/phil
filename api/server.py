@@ -1,9 +1,11 @@
 """FastAPI server exposing the CISV advisor over an SSE streaming endpoint.
 
-Reuses the existing RAG pipeline unchanged: `retrieve()` for Chroma + OpenAI
-embeddings, and the providers in `providers.py` for generation. Each browser
-session gets its own provider instance (and thus its own conversation history),
-keyed by a session id the frontend generates.
+Reuses the existing RAG pipeline: `retrieve()` for Chroma + OpenAI embeddings,
+and the providers in `providers.py` for generation.
+
+Stateless by design — the client sends the prior turns with each question and
+Supabase is the source of truth for them. Nothing is kept in process, so
+restarts and multiple workers never lose or split a conversation.
 
 Run with:  uvicorn api.server:app --reload --port 8000
 """
@@ -18,8 +20,9 @@ from fastapi.responses import StreamingResponse
 from openai import OpenAI
 from pydantic import BaseModel
 
-from rag.config import CHROMA_PATH, COLLECTION_NAME, LLM_PROVIDER
+from rag.config import CHROMA_PATH, COLLECTION_NAME, HISTORY_TURNS, LLM_PROVIDER
 from rag.providers import make_provider
+from rag.query import condense_question, generate_title
 from rag.retrieval import retrieve
 
 # Comma-separated list of exact allowed frontend origins (the Next.js dev server by default).
@@ -50,13 +53,19 @@ try:
 except Exception:
     raise SystemExit('No document index found — run `python -m rag.ingestion` first.')
 
-# One provider (conversation) per session id. In-memory, so history resets on restart.
-_sessions = {}
+# One shared provider — providers hold no conversation state.
+_provider = make_provider(LLM_PROVIDER)
+
+
+class Turn(BaseModel):
+    role: str
+    content: str
 
 
 class ChatRequest(BaseModel):
-    session_id: str
     question: str
+    # Prior turns of this conversation, oldest first. The client owns them.
+    history: list[Turn] = []
 
 
 def _sse(payload):
@@ -69,20 +78,31 @@ def health():
     return {'status': 'ok', 'provider': LLM_PROVIDER}
 
 
+class TitleRequest(BaseModel):
+    question: str
+
+
+@app.post('/api/title')
+def title(req: TitleRequest):
+    """Name a conversation from its opening question, for the sidebar."""
+    return {'title': generate_title(_provider, req.question)}
+
+
 @app.post('/api/chat')
 def chat(req: ChatRequest):
-    provider = _sessions.get(req.session_id)
-    if provider is None:
-        provider = make_provider(LLM_PROVIDER)
-        _sessions[req.session_id] = provider
+    history = [t.model_dump() for t in req.history][-HISTORY_TURNS:]
+
+    # A bare follow-up ("what about the age range?") embeds poorly on its own, so
+    # rewrite it against the history before retrieving.
+    search_query = condense_question(_provider, req.question, history)
 
     # Retrieve before opening the stream so retrieval errors surface as a normal
     # HTTP error rather than mid-stream.
-    chunks = retrieve(req.question, _openai_client, _collection)
+    chunks = retrieve(search_query, _openai_client, _collection)
 
     def event_stream():
         try:
-            for kind, payload in provider.stream_answer(req.question, chunks):
+            for kind, payload in _provider.stream_answer(req.question, chunks, history):
                 if kind == 'token':
                     yield _sse({'type': 'token', 'text': payload})
                 elif kind == 'sources':
