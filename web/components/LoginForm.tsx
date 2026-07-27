@@ -8,8 +8,10 @@ type Mode = "signin" | "signup";
 
 export default function LoginForm({
   initialError,
+  initialNotice,
 }: {
   initialError?: string;
+  initialNotice?: string;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("signin");
@@ -18,7 +20,7 @@ export default function LoginForm({
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(initialError ?? null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(initialNotice ?? null);
 
   async function withSupabase(fn: (supabase: ReturnType<typeof createClient>) => Promise<void>) {
     setBusy(true);
