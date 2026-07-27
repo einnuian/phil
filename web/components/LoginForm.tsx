@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -22,6 +22,20 @@ export default function LoginForm({
   const [error, setError] = useState<string | null>(initialError ?? null);
   const [notice, setNotice] = useState<string | null>(initialNotice ?? null);
 
+  // `busy` covers the Supabase call; `navigating` covers the client navigation that
+  // follows it. router.push() returns before the destination has rendered, so without
+  // this the button would drop back to "Sign in" while we're still on this page.
+  const [navigating, startNavigation] = useTransition();
+  const pending = busy || navigating;
+
+  // Leaves for `/` and re-fetches the server components with the new auth cookie.
+  function goHome() {
+    startNavigation(() => {
+      router.push("/");
+      router.refresh();
+    });
+  }
+
   async function withSupabase(fn: (supabase: ReturnType<typeof createClient>) => Promise<void>) {
     setBusy(true);
     setError(null);
@@ -37,7 +51,7 @@ export default function LoginForm({
 
   function onEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (busy) return;
+    if (pending) return;
 
     withSupabase(async (supabase) => {
       if (mode === "signup") {
@@ -54,8 +68,7 @@ export default function LoginForm({
 
         // With email confirmation on, Supabase returns a user but no session.
         if (data.session) {
-          router.push("/");
-          router.refresh();
+          goHome();
         } else {
           setNotice(`Check ${email} for a confirmation link to finish signing up.`);
         }
@@ -67,8 +80,7 @@ export default function LoginForm({
         password,
       });
       if (error) throw error;
-      router.push("/");
-      router.refresh();
+      goHome();
     });
   }
 
@@ -119,10 +131,10 @@ export default function LoginForm({
 
         <button
           type="submit"
-          disabled={busy}
+          disabled={pending}
           className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-cream transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {busy ? "…" : mode === "signin" ? "Sign in" : "Sign up"}
+          {pending ? "…" : mode === "signin" ? "Sign in" : "Sign up"}
         </button>
       </form>
 
