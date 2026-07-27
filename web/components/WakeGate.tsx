@@ -67,7 +67,7 @@ export default function WakeGate({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-full items-center justify-center px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
+      <div className="w-full max-w-sm rounded-2xl bg-sand p-8 text-center shadow-sm ring-1 ring-sand">
         <Spinner />
 
         <h1 className="mt-5 text-lg font-semibold">
@@ -92,7 +92,7 @@ export default function WakeGate({ children }: { children: React.ReactNode }) {
           type="button"
           onClick={retryNow}
           disabled={status === "checking"}
-          className="mt-6 w-full rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium transition enabled:hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-6 w-full rounded-xl border border-slate-400 px-4 py-2 text-sm font-medium transition enabled:hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50"
         >
           Retry now
         </button>
@@ -106,7 +106,7 @@ export default function WakeGate({ children }: { children: React.ReactNode }) {
 function Spinner() {
   return (
     <svg
-      className="mx-auto h-8 w-8 animate-spin text-blue-600"
+      className="mx-auto h-8 w-8 animate-spin text-slate-700"
       viewBox="0 0 24 24"
       fill="none"
       aria-hidden="true"
