@@ -13,6 +13,7 @@ export default function LoginForm({
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("signin");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -41,7 +42,11 @@ export default function LoginForm({
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${location.origin}/auth/confirm` },
+          options: {
+            emailRedirectTo: `${location.origin}/auth/confirm`,
+            // Stored on the auth user as user_metadata; read back by UserMenu.
+            data: { full_name: name.trim() },
+          },
         });
         if (error) throw error;
 
@@ -66,17 +71,23 @@ export default function LoginForm({
   }
 
   return (
-    <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
-      <h1 className="text-xl font-semibold">
-        {mode === "signin" ? "Sign in to Phil" : "Create your account"}
-      </h1>
-      <p className="mt-1 text-sm text-slate-500">
-        {mode === "signin"
-          ? "Welcome back — pick up where you left off."
-          : "Save your conversations with your CISV program planner."}
-      </p>
+    <div className="w-full max-w-sm rounded-2xl bg-sand p-8 shadow-sm ring-1 ring-sand">
+      <form onSubmit={onEmailSubmit} className="space-y-3">
+        {mode === "signup" && (
+          <label className="block">
+            <span className="text-sm font-medium text-slate-700">Name</span>
+            <input
+              type="text"
+              required
+              autoComplete="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-slate-300 bg-cream px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+              placeholder="Your name"
+            />
+          </label>
+        )}
 
-      <form onSubmit={onEmailSubmit} className="mt-6 space-y-3">
         <label className="block">
           <span className="text-sm font-medium text-slate-700">Email</span>
           <input
@@ -85,7 +96,7 @@ export default function LoginForm({
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="mt-1 w-full rounded-xl border border-slate-300 bg-cream px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
             placeholder="you@example.com"
           />
         </label>
@@ -99,7 +110,7 @@ export default function LoginForm({
             autoComplete={mode === "signin" ? "current-password" : "new-password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="mt-1 w-full rounded-xl border border-slate-300 bg-cream px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
             placeholder="At least 6 characters"
           />
         </label>
@@ -107,7 +118,7 @@ export default function LoginForm({
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-cream transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy ? "…" : mode === "signin" ? "Sign in" : "Sign up"}
         </button>
@@ -119,7 +130,7 @@ export default function LoginForm({
         </p>
       )}
       {notice && (
-        <p className="mt-4 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700">
+        <p className="mt-4 rounded-lg bg-cream px-3 py-2 text-sm text-slate-700">
           {notice}
         </p>
       )}
@@ -130,10 +141,11 @@ export default function LoginForm({
           type="button"
           onClick={() => {
             setMode(mode === "signin" ? "signup" : "signin");
+            setName("");
             setError(null);
             setNotice(null);
           }}
-          className="font-medium text-blue-600 hover:underline"
+          className="font-medium text-slate-900 underline hover:no-underline"
         >
           {mode === "signin" ? "Sign up" : "Sign in"}
         </button>

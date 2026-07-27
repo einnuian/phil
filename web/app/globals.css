@@ -7,7 +7,46 @@ body {
   height: 100%;
 }
 
+/* The typography plugin colours markdown via its own CSS variables, so a
+   `text-black` on the wrapper is overridden. This is the colour theme for
+   Phil's answers — everything black except code blocks, which stay light on
+   their dark background. */
+@layer components {
+  .prose-black {
+    --tw-prose-body: #000;
+    --tw-prose-headings: #000;
+    --tw-prose-lead: #000;
+    --tw-prose-links: #000;
+    --tw-prose-bold: #000;
+    --tw-prose-counters: #000;
+    --tw-prose-bullets: #000;
+    --tw-prose-quotes: #000;
+    --tw-prose-code: #000;
+    --tw-prose-captions: #000;
+    --tw-prose-hr: #e2e0d6;
+    --tw-prose-quote-borders: #e2e0d6;
+    --tw-prose-th-borders: #d6d3c4;
+    --tw-prose-td-borders: #e2e0d6;
+  }
+}
+
 @layer utilities {
+  /* Scrolls, but paints no scrollbar. */
+  .no-scrollbar {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* old Edge */
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari */
+  }
+
+  /* Content dissolves as it scrolls under the top edge rather than being
+     clipped. A mask fades to transparency, so it works on any background. */
+  .fade-top {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 2.5rem);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 2.5rem);
+  }
+
   .blink-cursor::after {
     content: "▌";
     animation: blink 1s step-start infinite;

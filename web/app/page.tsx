@@ -1,9 +1,9 @@
-import Chat from "@/components/Chat";
+import ChatShell from "@/components/ChatShell";
 
 export default function Home() {
   return (
     <main className="h-full">
-      <Chat />
+      <ChatShell />
     </main>
   );
 }
