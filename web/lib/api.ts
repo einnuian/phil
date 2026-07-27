@@ -30,6 +30,26 @@ export async function checkHealth(timeoutMs = 8000): Promise<boolean> {
 export type HistoryTurn = { role: "user" | "assistant"; content: string };
 
 /**
+ * Ask the backend to name a conversation from its opening question. Returns
+ * null on any failure — the caller falls back to the question itself, since a
+ * missing title is worse than an imperfect one.
+ */
+export async function generateTitle(question: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/title`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { title?: string };
+    return data.title?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * POST a question to the backend and yield Server-Sent Events as they arrive.
  * The backend streams `data: {json}\n\n` frames; we buffer the response body and
  * parse one frame at a time so tokens surface live.
