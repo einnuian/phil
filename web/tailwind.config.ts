@@ -7,7 +7,15 @@ const config: Config = {
     "./components/**/*.{ts,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        cream: "#fefcf5", // page + panel background
+        sand: "#f7ede2", // user-authored surfaces, dividers
+      },
+      fontFamily: {
+        display: ["var(--font-display)", "ui-sans-serif", "system-ui", "sans-serif"],
+      },
+    },
   },
   plugins: [typography],
 };
