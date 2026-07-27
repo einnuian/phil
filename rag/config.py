@@ -70,6 +70,23 @@ Standalone question:"""
 # How many prior turns to carry into the condense prompt and the generation call.
 HISTORY_TURNS = 10
 
+# Names a conversation from its opening question, for the sidebar.
+TITLE_PROMPT = """Write a short title for a conversation that opens with the question \
+below.
+
+Rules:
+- Three to six words.
+- Name the topic; do not answer the question.
+- No surrounding quotes and no trailing punctuation.
+- Plain text only.
+
+Question: {question}
+
+Title:"""
+
+# Titles longer than this are treated as the model ignoring the instruction.
+TITLE_MAX_CHARS = 60
+
 # Generation backend: 'mistral' or 'anthropic'. Override in .env.
 LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'mistral')
 

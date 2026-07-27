@@ -1,11 +1,17 @@
-"""Turn a follow-up question into a standalone one before retrieval.
+"""Small LLM helpers that operate on the user's question rather than answer it.
 
-Retrieval embeds a single question with no conversational context, so "what about
-the age range?" embeds almost meaninglessly and pulls back the wrong chunks. This
-rewrites it using the recent turns, then hands the standalone form to `retrieve()`.
+`condense_question` rewrites a follow-up into a standalone question before
+retrieval — retrieval embeds a single question with no conversational context, so
+"what about the age range?" would otherwise pull back the wrong chunks.
+
+`generate_title` names a conversation from its opening question, for the sidebar.
+
+Both degrade to a sensible non-LLM fallback rather than failing the request.
 """
 
-from .config import CONDENSE_PROMPT, HISTORY_TURNS
+import re
+
+from .config import CONDENSE_PROMPT, HISTORY_TURNS, TITLE_MAX_CHARS, TITLE_PROMPT
 
 
 def _format_history(history, turns=HISTORY_TURNS):
@@ -41,3 +47,33 @@ def condense_question(provider, question, history):
     if not rewritten or len(rewritten) > 4 * len(question) + 200:
         return question
     return rewritten
+
+
+def truncate_title(question, limit=TITLE_MAX_CHARS):
+    """Fallback title: the question itself, trimmed to fit the sidebar."""
+    text = ' '.join(question.split())
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1].rstrip() + '…'
+
+
+def generate_title(provider, question):
+    """Ask the model for a concise title for a conversation opening with `question`.
+
+    Falls back to the trimmed question if the call fails or the reply doesn't
+    look like a title — a conversation should always end up named.
+    """
+    try:
+        title = provider.complete(TITLE_PROMPT.format(question=question), max_tokens=32)
+    except Exception:
+        return truncate_title(question)
+
+    # Models like to wrap titles in quotes, prefix them with "Title:", or add a
+    # full stop — strip all of that before it reaches the sidebar.
+    title = ' '.join((title or '').split())
+    title = re.sub(r'^(title|topic)\s*:\s*', '', title, flags=re.IGNORECASE)
+    title = title.strip('"\'“”‘’').rstrip('.!,;:').strip()
+
+    if not title or len(title) > TITLE_MAX_CHARS:
+        return truncate_title(question)
+    return title
