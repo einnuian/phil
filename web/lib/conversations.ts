@@ -9,24 +9,39 @@ export type StoredMessage = {
   sources: string[];
 };
 
+export type ConversationSummary = {
+  id: string;
+  title: string | null;
+  updatedAt: string;
+};
+
 /**
  * Conversation persistence. Every query runs as the signed-in user, so RLS
  * (see supabase/schema.sql) is what scopes rows — there is no user_id filter
  * to forget here.
  */
 
-/** The user's most recent conversation, or null if they have none yet. */
-export async function latestConversationId(): Promise<string | null> {
+/** The user's conversations, newest first — matches the sidebar's index. */
+export async function listConversations(): Promise<ConversationSummary[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("conversations")
-    .select("id")
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .select("id, title, updated_at")
+    .order("updated_at", { ascending: false });
 
   if (error) throw error;
-  return data?.id ?? null;
+  return (data ?? []).map((c) => ({
+    id: c.id,
+    title: c.title,
+    updatedAt: c.updated_at,
+  }));
+}
+
+/** Delete a conversation. Its messages go with it via `on delete cascade`. */
+export async function deleteConversation(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from("conversations").delete().eq("id", id);
+  if (error) throw error;
 }
 
 export async function createConversation(title?: string): Promise<string> {
@@ -77,13 +92,28 @@ export async function saveMessage(
   if (error) throw error;
 }
 
-/** Name a conversation after its opening question, so a sidebar can list it. */
-export async function setTitleFromFirstQuestion(
+/** Rename a conversation. Unlike the initial naming, this overwrites. */
+export async function renameConversation(
   conversationId: string,
-  question: string,
+  title: string,
 ): Promise<void> {
   const supabase = createClient();
-  const title = question.length > 60 ? `${question.slice(0, 57)}…` : question;
+  const { error } = await supabase
+    .from("conversations")
+    .update({ title })
+    .eq("id", conversationId);
+  if (error) throw error;
+}
+
+/**
+ * Name a conversation, so the sidebar can list it. The `is("title", null)`
+ * guard means the generated title never overwrites one the user chose.
+ */
+export async function setConversationTitle(
+  conversationId: string,
+  title: string,
+): Promise<void> {
+  const supabase = createClient();
   const { error } = await supabase
     .from("conversations")
     .update({ title })
