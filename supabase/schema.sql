@@ -4,8 +4,15 @@
 -- Row Level Security is what makes it safe for the browser to read and write
 -- these tables directly with the user's own session: every policy below is
 -- scoped to auth.uid(), so a user can only ever touch their own rows.
+--
+-- Re-running this file rebuilds the schema from scratch. That is deliberate:
+-- there is no deployed database to preserve, and iterating on the schema is
+-- easier when a re-run actually applies your edits.
 
-create table if not exists public.conversations (
+drop table if exists public.messages cascade;
+drop table if exists public.conversations cascade;
+
+create table public.conversations (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users (id) on delete cascade,
   title       text,
@@ -13,7 +20,7 @@ create table if not exists public.conversations (
   updated_at  timestamptz not null default now()
 );
 
-create table if not exists public.messages (
+create table public.messages (
   id               uuid primary key default gen_random_uuid(),
   conversation_id  uuid not null references public.conversations (id) on delete cascade,
   role             text not null check (role in ('user', 'assistant')),
@@ -23,16 +30,15 @@ create table if not exists public.messages (
 );
 
 -- Sidebar lists a user's conversations newest-first; a thread reads in order.
-create index if not exists conversations_user_updated_idx
+create index conversations_user_updated_idx
   on public.conversations (user_id, updated_at desc);
-create index if not exists messages_conversation_created_idx
+create index messages_conversation_created_idx
   on public.messages (conversation_id, created_at);
 
 alter table public.conversations enable row level security;
 alter table public.messages enable row level security;
 
 -- Conversations: owned directly by the user.
-drop policy if exists "own conversations" on public.conversations;
 create policy "own conversations" on public.conversations
   for all
   using (auth.uid() = user_id)
@@ -40,7 +46,6 @@ create policy "own conversations" on public.conversations
 
 -- Messages: ownership is inherited through the parent conversation, so the
 -- policy has to look it up rather than trust a column on the row.
-drop policy if exists "own messages" on public.messages;
 create policy "own messages" on public.messages
   for all
   using (
@@ -71,7 +76,23 @@ begin
 end;
 $$;
 
-drop trigger if exists messages_touch_conversation on public.messages;
 create trigger messages_touch_conversation
   after insert on public.messages
   for each row execute function public.touch_conversation();
+
+-- Account deletion. The browser can't touch auth.users directly — that needs
+-- the service role key, which must never reach the client. This runs as the
+-- function owner instead and is hard-scoped to auth.uid(), so a caller can
+-- only ever delete themselves. Conversations and messages follow via
+-- `on delete cascade`.
+create or replace function public.delete_own_account()
+returns void
+language sql
+security definer
+set search_path = public, auth
+as $$
+  delete from auth.users where id = auth.uid();
+$$;
+
+revoke all on function public.delete_own_account() from public, anon;
+grant execute on function public.delete_own_account() to authenticated;
