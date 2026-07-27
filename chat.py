@@ -29,7 +29,7 @@ def main():
     # Providers are stateless, so the CLI keeps the conversation itself.
     history = []
 
-    print(f'CISV advisor Q&A ({provider.name}) — ask a question, or type "quit" to exit.')
+    print(f'I\'m Phil, your dedicated CISV Advisor ({provider.name}) — ask a question, or type "quit" to exit.')
     while True:
         try:
             question = input('\nQ: ').strip()
