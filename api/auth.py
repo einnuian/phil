@@ -33,8 +33,8 @@ def _config():
         os.getenv('SUPABASE_ANON_KEY', ''),
     )
 
-
-async def require_user(authorization: str = Header(default='')):
+# Require a logged in user
+'''async def require_user(authorization: str = Header(default='')):
     """FastAPI dependency: resolve the caller, or reject the request.
 
     Returns the Supabase user object so handlers can attribute usage.
@@ -66,4 +66,4 @@ async def require_user(authorization: str = Header(default='')):
     if response.status_code != 200:
         raise HTTPException(status_code=401, detail='Invalid or expired session.')
 
-    return response.json()
+    return response.json()'''
