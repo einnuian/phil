@@ -30,8 +30,19 @@ export default function ChatShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // get the user status
   const user = useSession();
+  const userID = user?.id ?? null;
+  const known = user !== undefined;
 
   useEffect(() => {
+    if (!known) return; // session not loaded yet
+
+    if (!userID) { // signed out
+      setConversations([]);
+      setSelectedId(null);
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
     (async () => {
       try {
@@ -48,7 +59,7 @@ export default function ChatShell() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [known, userID]);
 
   /**
    * Re-query after a save. This is what surfaces a brand-new thread with its

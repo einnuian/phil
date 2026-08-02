@@ -57,8 +57,8 @@ export default function UserMenu({ compact = false }: { compact?: boolean }) {
 
   async function signOut() {
     await createClient().auth.signOut();
-    router.push("/login");
-    router.refresh();
+    //router.push("/login");
+    //router.refresh();
   }
 
   async function deleteAccount(e: React.FormEvent) {
