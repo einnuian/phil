@@ -40,12 +40,13 @@ export async function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
   const isLogin = pathname === "/login";
 
-  if (!user && !isLogin) {
+  // User redirect to log in
+  /**if (!user && !isLogin) {
     const redirect = request.nextUrl.clone();
     redirect.pathname = "/login";
     redirect.search = "";
     return NextResponse.redirect(redirect);
-  }
+  }**/ 
 
   if (user && isLogin) {
     const redirect = request.nextUrl.clone();
