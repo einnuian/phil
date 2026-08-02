@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { generateTitle, streamChat } from "@/lib/api";
-import {
+import type { User } from "@supabase/supabase-js";
+import { 
   createConversation,
   loadMessages,
   saveMessage,
@@ -18,11 +19,13 @@ type Message = {
 };
 
 export default function Chat({
+  user,
   conversationId,
   conversationTitle,
   onRename,
   onConversationSaved,
 }: {
+  user: User | null | undefined;
   conversationId: string | null;
   conversationTitle: string | null;
   onRename: (id: string, title: string) => void;

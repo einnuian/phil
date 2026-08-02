@@ -2,8 +2,11 @@
 
 import UserMenu from "@/components/UserMenu";
 import type { ConversationSummary } from "@/lib/conversations";
+import type { User } from "@supabase/supabase-js";
+import Link from "next/link";
 
 export default function Sidebar({
+  user,
   conversations,
   selectedId,
   loading,
@@ -12,6 +15,7 @@ export default function Sidebar({
   onDelete,
   onClose,
 }: {
+  user: User | null | undefined;
   conversations: ConversationSummary[];
   selectedId: string | null;
   loading: boolean;
@@ -38,66 +42,81 @@ export default function Sidebar({
           <CollapseIcon />
         </button>
       </div>
-
-      <div className="px-3 pb-3">
-        <button
-          type="button"
-          onClick={onNew}
-          className="w-full rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-cream transition hover:bg-slate-700"
-        >
-          + New conversation
-        </button>
-      </div>
-
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-2">
-        {loading && (
-          <p className="px-2 py-3 text-xs text-slate-400">Loading…</p>
-        )}
-
-        {!loading && conversations.length === 0 && (
-          <p className="px-2 py-3 text-xs text-slate-400">
-            No conversations yet. Ask a question to start one.
-          </p>
-        )}
-
-        {conversations.map((c) => {
-          const selected = c.id === selectedId;
-          // A thread whose first answer hasn't saved yet has no title.
-          const label = c.title ?? "New conversation";
-          return (
-            <div
-              key={c.id}
-              className={
-                "group flex items-center gap-1 rounded-lg pr-1 " +
-                (selected ? "bg-sand" : "hover:bg-sand/60")
-              }
+      
+      {user ? (
+        <>
+          <div className="px-3 pb-3">
+            <button
+            type="button"
+            onClick={onNew}
+            className="w-full rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-cream transition hover:bg-slate-700"
             >
-              <button
-                type="button"
-                onClick={() => onSelect(c.id)}
-                title={label}
-                className={
-                  "flex-1 truncate px-2 py-2 text-left text-sm " +
-                  (selected ? "font-medium text-slate-900" : "text-slate-600")
-                }
-              >
-                {label}
-              </button>
-              <button
-                type="button"
-                aria-label={`Delete ${label}`}
-                onClick={() => onDelete(c.id)}
-                className="rounded p-1 text-slate-400 opacity-0 transition hover:bg-sand hover:text-slate-700 focus:opacity-100 group-hover:opacity-100"
-              >
-                <TrashIcon />
-              </button>
-            </div>
-          );
-        })}
-      </nav>
+              + New conversation
+            </button>
+          </div>
+
+          <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-2">
+            {loading && (
+              <p className="px-2 py-3 text-xs text-slate-400">Loading…</p>
+            )}
+
+            {!loading && conversations.length === 0 && (
+              <p className="px-2 py-3 text-xs text-slate-400">
+                No conversations yet. Ask a question to start one.
+              </p>
+            )}
+
+            {conversations.map((c) => {
+              const selected = c.id === selectedId;
+              // A thread whose first answer hasn't saved yet has no title.
+              const label = c.title ?? "New conversation";
+              return (
+                <div
+                  key={c.id}
+                  className={
+                    "group flex items-center gap-1 rounded-lg pr-1 " +
+                    (selected ? "bg-sand" : "hover:bg-sand/60")
+                  }
+                >
+                  <button
+                    type="button"
+                    onClick={() => onSelect(c.id)}
+                    title={label}
+                    className={
+                      "flex-1 truncate px-2 py-2 text-left text-sm " +
+                      (selected ? "font-medium text-slate-900" : "text-slate-600")
+                    }
+                  >
+                    {label}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Delete ${label}`}
+                    onClick={() => onDelete(c.id)}
+                    className="rounded p-1 text-slate-400 opacity-0 transition hover:bg-sand hover:text-slate-700 focus:opacity-100 group-hover:opacity-100"
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
+              );
+            })}
+          </nav>
+        </>
+      ) : (
+        <div className="flex-1"/>
+      )}
 
       <div className="border-t border-sand p-3">
-        <UserMenu />
+        {user === undefined ? null : user ? (
+          <UserMenu />
+        ) : (
+          <Link
+            href="/login"
+            className="block w-full rounded-lg border border-sand px-3 py-2 text-center text-xs font-medium transition hover:bg-sand"
+          >
+            Log in to save your conversation
+          </Link>
+        )}
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Chat from "@/components/Chat";
 import Sidebar from "@/components/Sidebar";
+import { useSession } from "@/lib/session";
 import SidebarRail from "@/components/SidebarRail";
 import {
   deleteConversation,
@@ -27,6 +28,8 @@ export default function ChatShell() {
   // below it. Starts closed so the drawer can't flash over the chat on a phone
   // before the effect below decides.
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // get the user status
+  const user = useSession();
 
   useEffect(() => {
     let cancelled = false;
@@ -138,6 +141,7 @@ export default function ChatShell() {
 
   const sidebar = (
     <Sidebar
+      user = {user}
       conversations={conversations}
       selectedId={selectedId}
       loading={loading}
@@ -168,6 +172,7 @@ export default function ChatShell() {
 
       <div className="min-w-0 flex-1">
         <Chat
+          user={user}
           conversationId={selectedId}
           conversationTitle={selectedTitle}
           onRename={rename}
