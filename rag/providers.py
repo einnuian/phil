@@ -21,10 +21,11 @@ for every past turn would balloon the prompt for no benefit.
 import os
 import re
 
-import anthropic
-from mistralai.client import Mistral
-
 from .config import ANTHROPIC_MODEL, MISTRAL_MODEL, SYSTEM_PROMPT
+
+# The provider SDKs are imported inside the constructors below, not here: only one
+# backend is ever used per process, and each SDK costs about a second of import on
+# Fly's shared CPU. Deferring them keeps the API listening sooner after a cold start.
 
 
 def chunk_title(chunk):
@@ -51,6 +52,8 @@ class AnthropicProvider:
     name = 'Claude'
 
     def __init__(self, model=ANTHROPIC_MODEL):
+        import anthropic
+
         self.client = anthropic.Anthropic()
         self.model = model
 
@@ -115,6 +118,7 @@ class MistralProvider:
     name = 'Mistral'
 
     def __init__(self, model=MISTRAL_MODEL):
+        from mistralai.client import Mistral
 
         self.client = Mistral(api_key=os.environ['MISTRAL_API_KEY'])
         self.model = model
