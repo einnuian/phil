@@ -128,10 +128,10 @@ python -m rag.ingestion
 echo "$CR_PAT" | docker login ghcr.io -u einnuian --password-stdin
 
 # 3. Build, tagging with the full registry path.
-docker build -t ghcr.io/einnuian/cisv-rag:latest .
+docker build -t ghcr.io/einnuian/phil:latest .
 
 # 4. Push.
-docker push ghcr.io/einnuian/cisv-rag:latest
+docker push ghcr.io/einnuian/phil:latest
 ```
 
 Then pull and run it anywhere, passing secrets at runtime - they are never baked
