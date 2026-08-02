@@ -86,6 +86,29 @@ export default function LoginForm({
 
   return (
     <div className="w-full max-w-sm rounded-2xl bg-sand p-8 shadow-sm ring-1 ring-sand">
+
+      <button
+        onClick={() => goHome()}
+        type="button"
+        className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-slate-900"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M19 12H5" />
+          <path d="m12 19-7-7 7-7" />
+        </svg>
+        Chat without signing in
+      </button>
+
       <form onSubmit={onEmailSubmit} className="space-y-3">
         {mode === "signup" && (
           <label className="block">
