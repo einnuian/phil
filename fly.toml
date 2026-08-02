@@ -13,8 +13,20 @@ primary_region = 'iad'
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 0
+  # The API takes ~15s to boot (chromadb + the OpenAI SDK are heavy imports on a
+  # shared CPU), which is longer than the proxy waits for an autostarted machine —
+  # so a cold start returned 502. Keep one machine warm to absorb the first request.
+  min_machines_running = 1
   processes = ['app']
+
+  # Readiness, so the proxy routes to a machine only once uvicorn is actually
+  # listening. grace_period covers the slow import path on a cold boot.
+  [[http_service.checks]]
+    grace_period = '30s'
+    interval = '15s'
+    timeout = '5s'
+    method = 'GET'
+    path = '/api/health'
 
 [[vm]]
   memory = '512mb'
