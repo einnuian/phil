@@ -9,12 +9,14 @@ type Mode = "signin" | "signup";
 export default function LoginForm({
   initialError,
   initialNotice,
+  initialMode = "signin",
 }: {
   initialError?: string;
   initialNotice?: string;
+  initialMode?: Mode;
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("signin");
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

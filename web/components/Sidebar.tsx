@@ -25,13 +25,13 @@ export default function Sidebar({
   onClose: () => void;
 }) {
   return (
-    <div className="flex h-full w-64 flex-col border-r border-sand bg-cream">
+    <div className="flex h-full w-64 flex-col border-r-2 border-sand bg-cream">
       <div className="flex items-start justify-between px-4 pb-3 pt-5">
         <div>
           <h1 className="font-display text-3xl font-semibold leading-none tracking-tight text-slate-900">
             Phil
           </h1>
-          <p className="mt-1.5 text-xs text-slate-500">Your dedicated CISV Advisor</p>
+          <p className="mt-1.5 text-sm text-slate-500">Your dedicated CISV Advisor</p>
         </div>
         <button
           type="button"
@@ -106,16 +106,24 @@ export default function Sidebar({
         <div className="flex-1"/>
       )}
 
-      <div className="border-t border-sand p-3">
+      <div className="border-t-2 border-sand p-3">
         {user === undefined ? null : user ? (
           <UserMenu />
         ) : (
-          <Link
-            href="/login"
-            className="block w-full rounded-lg border border-sand px-3 py-2 text-center text-xs font-medium transition hover:bg-sand"
-          >
-            Log in to save your conversation
-          </Link>
+          <div className="space-y-2">
+            <Link
+              href="/login"
+              className="block w-full rounded-lg border border-sand px-3 py-2 text-center text-sm font-medium transition hover:bg-sand"
+            >
+              Log in to save chats
+            </Link>
+            <Link
+              href="/login?mode=signup"
+              className="block w-full rounded-lg bg-slate-900 px-3 py-2 text-center text-sm font-medium text-cream transition hover:bg-slate-700"
+            >
+              Sign up for free
+            </Link>
+          </div>
         )}
       </div>
     </div>

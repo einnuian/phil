@@ -7,7 +7,7 @@ export const metadata = {
 export default function LoginPage({
   searchParams,
 }: {
-  searchParams: { error?: string; notice?: string };
+  searchParams: { error?: string; notice?: string; mode?: string };
 }) {
   return (
     <main className="flex h-full flex-col items-center justify-center px-4 py-10">
@@ -22,6 +22,7 @@ export default function LoginPage({
       <LoginForm
         initialError={searchParams.error}
         initialNotice={searchParams.notice}
+        initialMode={searchParams.mode === "signup" ? "signup" : "signin"}
       />
     </main>
   );

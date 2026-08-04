@@ -11,7 +11,7 @@ import UserMenu from "@/components/UserMenu";
  */
 export default function SidebarRail({ onOpen }: { onOpen: () => void }) {
   return (
-    <div className="flex h-full w-14 flex-col border-r border-sand bg-cream">
+    <div className="flex h-full w-14 flex-col border-r-2 border-sand bg-cream">
       <div className="flex justify-center pt-5">
         <button
           type="button"
@@ -26,7 +26,7 @@ export default function SidebarRail({ onOpen }: { onOpen: () => void }) {
 
       <div className="flex-1" />
 
-      <div className="border-t border-sand p-3">
+      <div className="border-t-2 border-sand p-3">
         <UserMenu compact />
       </div>
     </div>
