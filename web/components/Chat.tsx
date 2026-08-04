@@ -40,6 +40,7 @@ export default function Chat({
   // Mirrors the prop so send() can fill it in when it lazily creates a row.
   const activeId = useRef<string | null>(conversationId);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Load whichever conversation the sidebar selected. The `cancelled` guard
   // means switching threads quickly can't let a slow load overwrite a newer one.
@@ -94,6 +95,9 @@ export default function Chat({
 
     setInput("");
     setBusy(true);
+    // Covers sending via the Send button, which leaves focus on the button —
+    // pressing Enter never moves focus out of the textarea in the first place.
+    inputRef.current?.focus();
     setMessages((prev) => [
       ...prev,
       { role: "user", content: question },
@@ -165,7 +169,7 @@ export default function Chat({
 
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col">
-      <header className="flex items-center border-b border-sand px-6 py-3">
+      <header className="flex items-center border-b-2 border-sand px-6 py-3">
         {draftTitle !== null ? (
           <input
             autoFocus
@@ -262,16 +266,16 @@ export default function Chat({
         <div ref={bottomRef} />
       </div>
 
-      <div className="border-t border-sand px-6 py-4">
+      <div className="border-t-2 border-sand px-6 py-4">
         <div className="flex items-end gap-2">
           <textarea
+            ref={inputRef}
             className="max-h-40 min-h-[44px] flex-1 resize-none rounded-xl border border-sand bg-sand px-3 py-2 text-base placeholder:text-slate-500 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
             placeholder="Ask a question…  (Enter to send, Shift+Enter for newline)"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
             rows={1}
-            disabled={busy}
           />
           <button
             onClick={send}
