@@ -22,6 +22,9 @@ type Message = {
 // conversation isn't torn down by navigating away.
 const FEEDBACK_URL = "https://forms.gle/oNg9WMjXxcaMKsFb8";
 
+// Shown only on an empty thread, as a hint at the kind of thing Phil can answer.
+const EXAMPLE_PROMPTS = ["How long is a Village?", "Plan me an ice-breaker"];
+
 export default function Chat({
   user,
   conversationId,
@@ -90,8 +93,11 @@ export default function Chat({
     });
   }
 
-  async function send() {
-    const question = input.trim();
+  // `text` lets a caller supply the question directly. The example chips need
+  // this: setInput() wouldn't have landed in state yet on the same click, so
+  // reading `input` here would send an empty string.
+  async function send(text?: string) {
+    const question = (text ?? input).trim();
     if (!question || busy) return;
 
     // The turns already on screen are the context the backend needs.
@@ -181,14 +187,15 @@ export default function Chat({
       <textarea
         ref={inputRef}
         className="max-h-40 min-h-[36px] flex-1 resize-none bg-transparent px-2 py-1.5 text-base placeholder:text-slate-500 focus:outline-none"
-        placeholder="Ask a question…  (Enter to send, Shift+Enter for newline)"
+        placeholder="How can I help you today?"
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={onKeyDown}
         rows={1}
       />
       <button
-        onClick={send}
+        // Wrapped, or React would pass the click event in as `text`.
+        onClick={() => send()}
         disabled={busy || !input.trim()}
         // The icon carries no text, so the control needs a name of its own.
         aria-label="Send"
@@ -326,6 +333,20 @@ export default function Chat({
           </p>
         )}
         {composer}
+        {isEmpty && (
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
+            {EXAMPLE_PROMPTS.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                onClick={() => send(prompt)}
+                className="rounded-full border border-sand px-4 py-2 text-sm text-slate-600 transition hover:bg-sand hover:text-slate-900"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Balances the transcript area's flex-1 so the composer lands mid-page.
