@@ -33,8 +33,14 @@ EMBED_BATCH_SIZE = 100
 # Retrieval
 TOP_K = 6
 
+# Whether answers carry source citations. The citation machinery is left intact in
+# the providers; this switch turns it off — Claude's native citations are disabled,
+# Mistral is told not to cite inline, and both emit an empty source list (the web UI
+# and CLI then show no sources). Set to True to bring citations back.
+CITATIONS_ENABLED = False
+
 # Generation models
-ANTHROPIC_MODEL = 'claude-opus-4-8'
+ANTHROPIC_MODEL = 'claude-sonnet-5'
 MISTRAL_MODEL = 'mistral-small-latest'  # newest Small; pin a snapshot e.g. 'mistral-small-2506'
 
 SYSTEM_PROMPT = """You are an experienced CISV advisor. You answer questions from \
