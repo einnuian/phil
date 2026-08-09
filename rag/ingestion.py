@@ -18,7 +18,7 @@ from .config import (
 
 
 def load_documents(docs_path=DOCS_PATH):
-    """Load PDFs (per page), Word docs, and text files into {text, source, page} dicts."""
+    """Load PDFs (per page), Word docs, markdown, and text files into {text, source, page} dicts."""
     print(f'Loading documents from {docs_path}')
 
     if not os.path.isdir(docs_path):
@@ -43,7 +43,7 @@ def load_documents(docs_path=DOCS_PATH):
                 text = '\n'.join(p.text for p in DocxDocument(path).paragraphs)
                 if text.strip():
                     docs.append({'text': text, 'source': source, 'page': None})
-            elif ext == '.txt':
+            elif ext in ('.txt', '.md', '.markdown'):
                 with open(path, encoding='utf-8') as f:
                     text = f.read()
                 if text.strip():
@@ -56,7 +56,9 @@ def load_documents(docs_path=DOCS_PATH):
                 print(f'  Skipping unsupported file: {source}')
 
     if not docs:
-        raise FileNotFoundError(f'No .pdf, .docx, or .txt files with text found in {docs_path}.')
+        raise FileNotFoundError(
+            f'No .pdf, .docx, .md, or .txt files with text found in {docs_path}.'
+        )
 
     print(f'Loaded {len(docs)} pages/files from {len({d["source"] for d in docs})} documents')
     return docs
