@@ -1,0 +1,6 @@
+# Evaluation-only dependencies. Deliberately not in the top-level
+# requirements.txt: the Dockerfile installs that file, and ragas pulls in pandas
+# and its own LLM stack, which would bloat the Fly image for code that never
+# runs in production.
+ragas
+pandas
