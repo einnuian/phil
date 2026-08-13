@@ -8,10 +8,13 @@ import UserMenu from "@/components/UserMenu";
  * Padding here deliberately mirrors `Sidebar` — `pt-5` on the toggle and `p-3`
  * on the footer — so both controls stay put when the sidebar expands and
  * collapses instead of jumping.
+ *
+ * Hidden below md: on a phone a collapsed sidebar should take no width at all,
+ * so the chat header's menu button reopens the drawer instead.
  */
 export default function SidebarRail({ onOpen }: { onOpen: () => void }) {
   return (
-    <div className="flex h-full w-14 flex-col border-r-2 border-sand bg-cream">
+    <div className="hidden h-full w-14 flex-col border-r-2 border-sand bg-cream md:flex">
       <div className="flex justify-center pt-5">
         <button
           type="button"

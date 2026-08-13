@@ -31,12 +31,14 @@ export default function Chat({
   conversationTitle,
   onRename,
   onConversationSaved,
+  onOpenSidebar,
 }: {
   user: User | null | undefined;
   conversationId: string | null;
   conversationTitle: string | null;
   onRename: (id: string, title: string) => void;
   onConversationSaved: (id: string) => void;
+  onOpenSidebar: () => void;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -214,6 +216,17 @@ export default function Chat({
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col">
       <header className="flex items-center justify-between gap-3 border-b-2 border-sand px-6 py-3">
+        {/* On a phone the sidebar collapses to nothing, so this is the only way
+            back to the conversation list. On md+ the rail owns that job. */}
+        <button
+          type="button"
+          onClick={onOpenSidebar}
+          aria-label="Show conversations"
+          className="-ml-2 shrink-0 rounded-lg p-1.5 text-slate-500 transition hover:bg-sand md:hidden"
+        >
+          <MenuIcon />
+        </button>
+
         {/* min-w-0 lets the title truncate instead of pushing the button off the edge. */}
         <div className="min-w-0 flex-1">
           {draftTitle !== null ? (
@@ -353,6 +366,23 @@ export default function Chat({
           Weighted heavier so the block reads as centred rather than slightly low. */}
       {isEmpty && <div className="flex-[1.2]" />}
     </div>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
   );
 }
 

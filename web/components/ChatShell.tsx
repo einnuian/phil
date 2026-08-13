@@ -188,6 +188,7 @@ export default function ChatShell() {
           conversationTitle={selectedTitle}
           onRename={rename}
           onConversationSaved={refresh}
+          onOpenSidebar={() => setSidebarOpen(true)}
         />
       </div>
     </div>
