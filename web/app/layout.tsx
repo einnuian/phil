@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import WakeGate from "@/components/WakeGate";
 import "./globals.css";
 
@@ -25,6 +26,8 @@ export default function RootLayout({
       <body className="h-full bg-cream text-slate-900 antialiased">
         {/* Health-checks the backend on every app load; holds the UI until it answers. */}
         <WakeGate>{children}</WakeGate>
+        {/* Visitor counts, including signed-out users*/}
+        <Analytics />
       </body>
     </html>
   );
