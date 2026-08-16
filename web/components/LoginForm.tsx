@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import PasswordInput from "@/components/PasswordInput";
 import { createClient } from "@/lib/supabase/client";
 
-type Mode = "signin" | "signup";
+type Mode = "signin" | "signup" | "reset";
 
 export default function LoginForm({
   initialError,
@@ -90,6 +91,20 @@ export default function LoginForm({
     if (pending) return;
 
     withSupabase(async (supabase) => {
+      if (mode === "reset") {
+        // Routed through /auth/callback so the code is exchanged for a session
+        // by the handler that already does that, then on to the reset page.
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${location.origin}/auth/callback?next=/auth/reset`,
+        });
+        if (error) throw error;
+
+        // Deliberately the same message whether or not the account exists —
+        // Supabase won't say, and neither should we.
+        setNotice(`If an account exists for ${email}, a reset link is on its way.`);
+        return;
+      }
+
       if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -151,21 +166,27 @@ export default function LoginForm({
         Chat without signing in
       </button>
 
-      <button
-        type="button"
-        onClick={onGoogle}
-        disabled={pending}
-        className="mb-4 flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-300 bg-cream px-4 py-2.5 text-sm font-medium text-slate-700 transition enabled:hover:bg-sand disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <GoogleIcon />
-        Continue with Google
-      </button>
+      {/* Offering Google here would be a non-sequitur — the user is on this
+          screen precisely because they're trying to recover a password. */}
+      {mode !== "reset" && (
+        <>
+          <button
+            type="button"
+            onClick={onGoogle}
+            disabled={pending}
+            className="mb-4 flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-300 bg-cream px-4 py-2.5 text-sm font-medium text-slate-700 transition enabled:hover:bg-sand disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <GoogleIcon />
+            Continue with Google
+          </button>
 
-      <div className="mb-4 flex items-center gap-3">
-        <span className="h-px flex-1 bg-slate-300" />
-        <span className="text-xs text-slate-500">or</span>
-        <span className="h-px flex-1 bg-slate-300" />
-      </div>
+          <div className="mb-4 flex items-center gap-3">
+            <span className="h-px flex-1 bg-slate-300" />
+            <span className="text-xs text-slate-500">or</span>
+            <span className="h-px flex-1 bg-slate-300" />
+          </div>
+        </>
+      )}
 
       <form onSubmit={onEmailSubmit} className="space-y-3">
         {mode === "signup" && (
@@ -196,26 +217,51 @@ export default function LoginForm({
           />
         </label>
 
-        <label className="block">
-          <span className="text-sm font-medium text-slate-700">Password</span>
-          <input
-            type="password"
-            required
-            minLength={6}
-            autoComplete={mode === "signin" ? "current-password" : "new-password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-300 bg-cream px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
-            placeholder="At least 6 characters"
-          />
-        </label>
+        {/* Reset only needs the address — and the field is `required`, so it has
+            to come out of the DOM rather than just be hidden. */}
+        {mode !== "reset" && (
+          <label className="block">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm font-medium text-slate-700">Password</span>
+              {mode === "signin" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("reset");
+                    setError(null);
+                    setNotice(null);
+                  }}
+                  className="text-xs font-medium text-slate-500 underline hover:text-slate-900"
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
+            <PasswordInput
+              required
+              minLength={6}
+              autoComplete={mode === "signin" ? "current-password" : "new-password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              wrapperClassName="mt-1"
+              className="w-full rounded-xl border border-slate-300 bg-cream px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+              placeholder="At least 6 characters"
+            />
+          </label>
+        )}
 
         <button
           type="submit"
           disabled={pending}
           className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-cream transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {pending ? "…" : mode === "signin" ? "Sign in" : "Sign up"}
+          {pending
+            ? "…"
+            : mode === "signin"
+              ? "Sign in"
+              : mode === "signup"
+                ? "Sign up"
+                : "Send reset link"}
         </button>
       </form>
 
@@ -235,6 +281,7 @@ export default function LoginForm({
         <button
           type="button"
           onClick={() => {
+            // From reset, the only sensible way back is sign in.
             setMode(mode === "signin" ? "signup" : "signin");
             setName("");
             setError(null);
