@@ -32,6 +32,7 @@ export default function Chat({
   onRename,
   onConversationSaved,
   onOpenSidebar,
+  onSignIn,
 }: {
   user: User | null | undefined;
   conversationId: string | null;
@@ -39,6 +40,7 @@ export default function Chat({
   onRename: (id: string, title: string) => void;
   onConversationSaved: (id: string) => void;
   onOpenSidebar: () => void;
+  onSignIn: () => void;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -48,7 +50,12 @@ export default function Chat({
   const [draftTitle, setDraftTitle] = useState<string | null>(null);
   // Mirrors the prop so send() can fill it in when it lazily creates a row.
   const activeId = useRef<string | null>(conversationId);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Whether to keep pinning the view to the newest text. Goes false the moment
+  // the reader scrolls up, so a streaming answer stops dragging them back down,
+  // and true again when they return to the bottom. A ref rather than state:
+  // this changes on every scroll event and must not re-render the transcript.
+  const followRef = useRef(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Load whichever conversation the sidebar selected. The `cancelled` guard
@@ -57,6 +64,9 @@ export default function Chat({
     let cancelled = false;
     activeId.current = conversationId;
     setDraftTitle(null);
+    // A freshly opened thread should start at its newest message, whatever the
+    // reader had scrolled to in the previous one.
+    followRef.current = true;
 
     if (!conversationId) {
       setMessages([]);
@@ -82,8 +92,24 @@ export default function Chat({
     };
   }, [conversationId]);
 
+  // Within this many pixels of the bottom still counts as "at the bottom" —
+  // rounding and sub-pixel layout mean scrollTop rarely hits the exact value.
+  const AT_BOTTOM_SLACK = 80;
+
+  function onScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    followRef.current = distance <= AT_BOTTOM_SLACK;
+  }
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollRef.current;
+    if (!el || !followRef.current) return;
+    // Jump rather than smooth-scroll: at one update per token a smooth animation
+    // never finishes before the next one restarts it, which is what made manual
+    // scrolling feel like it was being fought.
+    el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   // Replace the last (assistant) message via an updater — used for live streaming.
@@ -107,6 +133,9 @@ export default function Chat({
 
     setInput("");
     setBusy(true);
+    // Asking a question is a request to see the answer, so resume following even
+    // if they'd scrolled up to re-read something earlier.
+    followRef.current = true;
     // Covers sending via the Send button, which leaves focus on the button —
     // pressing Enter never moves focus out of the textarea in the first place.
     inputRef.current?.focus();
@@ -255,11 +284,25 @@ export default function Chat({
             >
               {conversationTitle ?? "Untitled conversation"}
             </button>
-          ) : (
+          ) : user === undefined ? (
+            // Session still loading — leave the slot empty rather than flashing
+            // a login button at someone who turns out to be signed in.
+            null
+          ) : user ? (
             // Nothing to rename until the first answer creates the row.
             <span className="px-2 py-1 text-sm font-medium text-slate-400">
               New conversation
             </span>
+          ) : (
+            // Signed out: there's no thread to name, so the slot earns its keep
+            // by saying what signing in would get you.
+            <button
+              type="button"
+              onClick={onSignIn}
+              className="rounded-lg border border-sand px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-sand"
+            >
+              Log in to save chats
+            </button>
           )}
         </div>
 
@@ -276,6 +319,8 @@ export default function Chat({
       {/* Doubles as the transcript and, when empty, as the top half of the
           centring — hence the bare `flex-1` in that case. */}
       <div
+        ref={scrollRef}
+        onScroll={onScroll}
         className={
           isEmpty
             ? "flex-1"
@@ -334,7 +379,6 @@ export default function Chat({
             </div>
           );
         })}
-        <div ref={bottomRef} />
       </div>
 
       {/* This wrapper is the same element in both layouts, so React keeps the

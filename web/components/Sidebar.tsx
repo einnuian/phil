@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import LoginForm from "@/components/LoginForm";
 import UserMenu from "@/components/UserMenu";
 import type { ConversationSummary } from "@/lib/conversations";
 import type { User } from "@supabase/supabase-js";
@@ -15,6 +13,7 @@ export default function Sidebar({
   onNew,
   onDelete,
   onClose,
+  onSignIn,
 }: {
   user: User | null | undefined;
   conversations: ConversationSummary[];
@@ -24,11 +23,8 @@ export default function Sidebar({
   onNew: () => void;
   onDelete: (id: string) => void;
   onClose: () => void;
+  onSignIn: (mode: "signin" | "signup") => void;
 }) {
-  // Which mode the login modal opens in, or null when it's shut. One piece of
-  // state for both, so the two buttons can't fight over which form is showing.
-  const [authMode, setAuthMode] = useState<"signin" | "signup" | null>(null);
-
   return (
     <div className="flex h-full w-64 flex-col border-r-2 border-sand bg-cream">
       <div className="flex items-start justify-between px-4 pb-3 pt-5">
@@ -118,14 +114,14 @@ export default function Sidebar({
           <div className="space-y-2">
             <button
               type="button"
-              onClick={() => setAuthMode("signin")}
+              onClick={() => onSignIn("signin")}
               className="block w-full rounded-lg border border-sand px-3 py-2 text-center text-sm font-medium transition hover:bg-sand"
             >
               Log in to save chats
             </button>
             <button
               type="button"
-              onClick={() => setAuthMode("signup")}
+              onClick={() => onSignIn("signup")}
               className="block w-full rounded-lg bg-slate-900 px-3 py-2 text-center text-sm font-medium text-cream transition hover:bg-slate-700"
             >
               Sign up for free
@@ -133,24 +129,6 @@ export default function Sidebar({
           </div>
         )}
       </div>
-
-      {/* Above the mobile drawer (z-30 in ChatShell) so it isn't trapped inside
-          the sidebar column. `fixed` is viewport-relative — no transformed
-          ancestor here — so it centres over the whole app on both breakpoints. */}
-      {authMode && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-slate-900/40"
-            onClick={() => setAuthMode(null)}
-          />
-          <div className="relative">
-            <LoginForm
-              initialMode={authMode}
-              onClose={() => setAuthMode(null)}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

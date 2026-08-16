@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Chat from "@/components/Chat";
+import LoginForm from "@/components/LoginForm";
 import Sidebar from "@/components/Sidebar";
 import { useSession } from "@/lib/session";
 import SidebarRail from "@/components/SidebarRail";
@@ -28,6 +29,9 @@ export default function ChatShell() {
   // below it. Starts closed so the drawer can't flash over the chat on a phone
   // before the effect below decides.
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Which mode the login modal opens in, or null when it's shut. Owned here
+  // rather than in the sidebar because the chat header opens it too.
+  const [authMode, setAuthMode] = useState<"signin" | "signup" | null>(null);
   // get the user status
   const user = useSession();
   const userID = user?.id ?? null;
@@ -160,6 +164,7 @@ export default function ChatShell() {
       onNew={startNew}
       onDelete={remove}
       onClose={() => setSidebarOpen(false)}
+      onSignIn={setAuthMode}
     />
   );
 
@@ -189,8 +194,24 @@ export default function ChatShell() {
           onRename={rename}
           onConversationSaved={refresh}
           onOpenSidebar={() => setSidebarOpen(true)}
+          onSignIn={() => setAuthMode("signin")}
         />
       </div>
+
+      {/* Above the mobile drawer (z-30) so it isn't trapped behind it. `fixed`
+          is viewport-relative — no transformed ancestor here — so it centres
+          over the whole app at both breakpoints. */}
+      {authMode && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/40"
+            onClick={() => setAuthMode(null)}
+          />
+          <div className="relative">
+            <LoginForm initialMode={authMode} onClose={() => setAuthMode(null)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
