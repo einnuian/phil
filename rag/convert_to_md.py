@@ -25,7 +25,7 @@ def load_documents(docs_path=DOCS_PATH):
 
 def main():
 
-    '''paths = load_documents()
+    paths = load_documents()
 
     # Set up pipeline options
     pipeline_options = PdfPipelineOptions(do_table_structure=True)
@@ -39,9 +39,7 @@ def main():
     # Export results
     for result in results:
         with open(f"md_output/{result.input.file.stem.lower()}.md", "w", encoding="utf-8") as f:
-            f.write(result.document.export_to_markdown())'''
-
-    print(DOCS_PATH)
+            f.write(result.document.export_to_markdown())
 
 if __name__ == '__main__':
     main()

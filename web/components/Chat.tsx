@@ -386,7 +386,7 @@ export default function Chat({
       <div className={isEmpty ? "px-6" : "border-t-2 border-sand px-6 py-4"}>
         {isEmpty && (
           <p className="mb-6 text-center text-xl">
-            Ask me anything about CISV!
+            Ask me about CISV!
           </p>
         )}
         {composer}
