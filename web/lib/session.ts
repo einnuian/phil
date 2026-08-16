@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 
-/**Look into signInAnonymously as a replacement for this function*/
+/**Look into signInAnonymously as a replacement for this function
+ * Note (08/14/26): Decided against anonymous users because it counts
+ * towards MAU and can bloat the user table, when the main purpose is
+ * only to log conversations. All messages already pass through the server
+ * so better to log them there.
+*/
 
 export function useSession(){
   // Three scenarios: user is logged in, user is logged out (null), and unknown (undefined on first load)
