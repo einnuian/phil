@@ -19,6 +19,28 @@ export async function verifyPassword(
 }
 
 /**
+ * Change the signed-in user's password.
+ *
+ * Re-authenticates first for the same reason `deleteAccount` does: an unlocked
+ * session left open on a shared machine shouldn't be enough to lock the real
+ * owner out of their own account.
+ *
+ * Returns null on success, or the failure message.
+ */
+export async function changePassword(
+  email: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<string | null> {
+  const failure = await verifyPassword(email, currentPassword);
+  if (failure) return failure;
+
+  const supabase = createClient();
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  return error ? error.message : null;
+}
+
+/**
  * Permanently delete the signed-in user's account.
  *
  * Calls the `delete_own_account` function in supabase/schema.sql, which is

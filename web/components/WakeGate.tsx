@@ -71,14 +71,14 @@ export default function WakeGate({ children }: { children: React.ReactNode }) {
         <Spinner />
 
         <h1 className="mt-5 text-lg font-semibold">
-          {status === "checking" ? "Connecting…" : "Waking the server"}
+          {status === "checking" ? "Connecting…" : "Waking Phil"}
         </h1>
 
         <p className="mt-2 text-sm text-slate-500">
           {status === "checking"
-            ? "Checking that the backend is reachable."
+            ? "Checking that Phil's brain is there."
             : slow
-              ? "The server is asleep and starting up. This can take up to a minute — it'll load automatically."
+              ? "Phil is asleep and waking up. This can take up to a minute."
               : "No answer yet. Retrying…"}
         </p>
 
