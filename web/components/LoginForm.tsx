@@ -10,10 +10,17 @@ export default function LoginForm({
   initialError,
   initialNotice,
   initialMode = "signin",
+  onClose,
 }: {
   initialError?: string;
   initialNotice?: string;
   initialMode?: Mode;
+  /**
+   * Present when the form is shown in a modal rather than on /login. Dismissing
+   * and succeeding both mean "close" there — the user is already where they
+   * wanted to be, so navigating them home would be a step backwards.
+   */
+  onClose?: () => void;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -31,7 +38,14 @@ export default function LoginForm({
   const pending = busy || navigating;
 
   // Leaves for `/` and re-fetches the server components with the new auth cookie.
+  // In the modal there's nowhere to go, so just close — `useSession` picks the
+  // new session up on its own, and the refresh re-runs middleware with the cookie.
   function goHome() {
+    if (onClose) {
+      onClose();
+      router.refresh();
+      return;
+    }
     startNavigation(() => {
       router.push("/");
       router.refresh();
@@ -49,6 +63,26 @@ export default function LoginForm({
     } finally {
       setBusy(false);
     }
+  }
+
+  /**
+   * Hands off to Google. This navigates the whole page away, so there's no
+   * success path to handle here — the browser comes back to /auth/callback with
+   * a code, which exchanges it for a session and redirects to `/`.
+   *
+   * Signing up and signing in are the same call: Google creates the account on
+   * first use, which is why this sits outside the signin/signup toggle.
+   */
+  function onGoogle() {
+    if (pending) return;
+
+    withSupabase(async (supabase) => {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: `${location.origin}/auth/callback` },
+      });
+      if (error) throw error;
+    });
   }
 
   function onEmailSubmit(e: React.FormEvent) {
@@ -105,11 +139,33 @@ export default function LoginForm({
           strokeLinejoin="round"
           aria-hidden="true"
         >
-          <path d="M19 12H5" />
-          <path d="m12 19-7-7 7-7" />
+          {onClose ? (
+            <path d="M18 6 6 18M6 6l12 12" />
+          ) : (
+            <>
+              <path d="M19 12H5" />
+              <path d="m12 19-7-7 7-7" />
+            </>
+          )}
         </svg>
         Chat without signing in
       </button>
+
+      <button
+        type="button"
+        onClick={onGoogle}
+        disabled={pending}
+        className="mb-4 flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-300 bg-cream px-4 py-2.5 text-sm font-medium text-slate-700 transition enabled:hover:bg-sand disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <GoogleIcon />
+        Continue with Google
+      </button>
+
+      <div className="mb-4 flex items-center gap-3">
+        <span className="h-px flex-1 bg-slate-300" />
+        <span className="text-xs text-slate-500">or</span>
+        <span className="h-px flex-1 bg-slate-300" />
+      </div>
 
       <form onSubmit={onEmailSubmit} className="space-y-3">
         {mode === "signup" && (
@@ -190,5 +246,29 @@ export default function LoginForm({
         </button>
       </p>
     </div>
+  );
+}
+
+/** Google's mark, in its required four colours — not `currentColor`. */
+function GoogleIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"
+      />
+      <path
+        fill="#34A853"
+        d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24s.85 6.91 2.34 9.88l7.35-5.7z"
+      />
+      <path
+        fill="#EA4335"
+        d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"
+      />
+    </svg>
   );
 }

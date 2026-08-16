@@ -21,6 +21,7 @@ from openai import OpenAI
 from pydantic import BaseModel
 
 #from api.auth import require_user
+from api.chatlogger import log_chat
 from rag.config import CHROMA_PATH, COLLECTION_NAME, HISTORY_TURNS, LLM_PROVIDER
 from rag.providers import make_provider
 from rag.query import condense_question, generate_title
@@ -76,6 +77,7 @@ def _sse(payload):
 
 @app.get('/api/health')
 def health():
+    #log_chat('Test OK?', 'Test OK.')
     return {'status': 'ok', 'provider': LLM_PROVIDER}
 
 
@@ -94,6 +96,7 @@ def title(req: TitleRequest):
 
 @app.post('/api/chat')
 #def chat(req: ChatRequest, user=Depends(require_user)):
+# Disable require_user for the time being so everybody can chat
 def chat(req: ChatRequest):
     history = [t.model_dump() for t in req.history][-HISTORY_TURNS:]
 
@@ -106,14 +109,20 @@ def chat(req: ChatRequest):
     chunks = retrieve(search_query, _openai_client, _collection)
 
     def event_stream():
+        # accumulates the stream to send to logger
+        accumulator = []
         try:
             for kind, payload in _provider.stream_answer(req.question, chunks, history):
                 if kind == 'token':
+                    accumulator.append(payload)
                     yield _sse({'type': 'token', 'text': payload})
                 elif kind == 'sources':
                     yield _sse({'type': 'sources', 'sources': payload})
             yield _sse({'type': 'done'})
         except Exception as e:  # provider already rolled back its unanswered turn
             yield _sse({'type': 'error', 'message': str(e)})
+        finally:
+            answer = ''.join(accumulator)
+            log_chat(req.question, answer)
 
     return StreamingResponse(event_stream(), media_type='text/event-stream')

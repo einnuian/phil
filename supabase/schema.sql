@@ -96,3 +96,25 @@ $$;
 
 revoke all on function public.delete_own_account() from public, anon;
 grant execute on function public.delete_own_account() to authenticated;
+
+-- Conversation logging — operator telemetry, not user data.
+--
+-- Deliberately unrelated to `conversations`/`messages`: there is no foreign key
+-- to auth.users or to a conversation, so `delete_own_account` above can't take
+-- the record of how the bot performed with it.
+--
+-- Access control here is the *absence* of policies. RLS is enabled and nothing
+-- is defined, which denies anon and authenticated everything — a select from
+-- the browser comes back empty rather than erroring. The service role bypasses
+-- RLS, so the backend writes with SUPABASE_SERVICE_KEY and nothing else reads.
+
+drop table if exists public.chat_logs cascade;
+
+create table public.chat_logs (
+  id          uuid primary key default gen_random_uuid(),
+  question    text not null,
+  answer      text not null,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.chat_logs enable row level security;

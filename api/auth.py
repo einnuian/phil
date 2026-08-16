@@ -30,7 +30,7 @@ def _config():
     """
     return (
         os.getenv('SUPABASE_URL', '').rstrip('/'),
-        os.getenv('SUPABASE_ANON_KEY', ''),
+        os.getenv('SUPABASE_PUBLISHABLE_KEY', ''),
     )
 
 # Require a logged in user
