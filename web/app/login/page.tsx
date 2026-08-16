@@ -2,6 +2,11 @@ import LoginForm from "@/components/LoginForm";
 
 export const metadata = {
   title: "Sign in — Phil",
+  // A sign-in screen should never be the entry point from a search result —
+  // which is exactly what happened while the middleware redirected every
+  // signed-out request (Googlebot included) here. `follow` stays on so links
+  // out of this page are still crawled.
+  robots: { index: false, follow: true },
 };
 
 export default function LoginPage({
