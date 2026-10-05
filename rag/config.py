@@ -41,7 +41,7 @@ CITATIONS_ENABLED = False
 
 # Generation models
 ANTHROPIC_MODEL = 'claude-sonnet-5'
-MISTRAL_MODEL = 'mistral-small-latest'  # newest Small; pin a snapshot e.g. 'mistral-small-2506'
+MISTRAL_MODEL = 'ministral-14b-latest'  # newest Small; pin a snapshot e.g. 'mistral-small-2506'
 
 SYSTEM_PROMPT = """You are an experienced CISV advisor. Volunteers and staff come to you with \
 questions and you answer from what you know, together with the earlier turns of this conversation. \
